@@ -7,6 +7,15 @@
 **Architecture:** handler → service → store, API key auth, REST endpoints
 **Estimated effort:** ~20 hours across 4 weeks at ~5 hrs/week
 
+### MVP Scope Guardrails
+
+This build plan targets a **usable simple task board**. It includes projects, tasks, status transitions, users, and API key auth. The following are intentionally out of scope for v1:
+- comments/discussion threads
+- full activity/event history and audit log
+- per-field change attribution (who changed what and when)
+
+Design and schema decisions should keep these extensible, but implementation should stay focused on the MVP.
+
 ---
 
 ## Phase 0: Project Bootstrapping
@@ -65,6 +74,9 @@ Write the database initialization code that opens a SQLite connection and runs S
 - `NewStore(dbPath string) (*Store, error)` opens the database and runs migrations
 - WAL mode is enabled via `PRAGMA journal_mode=WAL` and foreign keys via `PRAGMA foreign_keys=ON`
 - `migrations/001_initial.sql` is embedded using `//go:embed migrations/*.sql`
+- `001_initial.sql` creates: `projects`, `statuses`, `tasks`, `users`, `api_keys`, `user_project_permissions`, and `_migrations`
+- `statuses` are seeded idempotently with: `backlog`, `todo`, `in-progress`, `review`, `done`
+- `tasks.tags` exists as `TEXT` for JSON storage
 - A `_migrations` table tracks applied migration filenames
 - Migrations are applied inside a transaction — if any migration fails, none are applied
 - Unit test creates an in-memory database (`:memory:`), verifies tables exist after migration
@@ -125,18 +137,19 @@ Write the SQL-backed CRUD operations for tasks. Similar pattern to project store
 
 ---
 
-### T-013: Implement API key store operations
+### T-013: Implement user and API key store operations
 
 **Description:**
-Write the store operations for API key management. Keys are hashed with SHA-256 before storage. The raw key is generated using `crypto/rand`, formatted as `ta_` followed by 32 hex characters, and returned exactly once on creation. The store never sees or returns the raw key — only the hash. A `ValidateKey(ctx, rawKey) (ApiKey, error)` method hashes the provided key and looks it up.
+Write store operations for user identity and API key management. Users and API keys are separate tables (`users` and `api_keys`) so one user can hold multiple keys. Keys are hashed with SHA-256 before storage. The raw key is generated using `crypto/rand`, formatted as `ta_` followed by 32 hex characters, and returned exactly once on creation. The store never stores or returns the raw key after creation. `ValidateKey(ctx, rawKey)` hashes the provided key and looks it up.
 
 **Definition of Done — Task:**
-- `internal/store/apikey.go` contains methods: `CreateApiKey(ctx, label, userName) (rawKey string, error)`, `ValidateKey(ctx, rawKey) (ApiKey, error)`, `ListApiKeys(ctx) ([]ApiKey, error)`, `DeleteApiKey(ctx, id) error`
+- `internal/store/user.go` contains methods: `CreateUser(ctx, name, isAdmin) (User, error)`, `GetUserByName(ctx, name) (User, error)`
+- `internal/store/apikey.go` contains methods: `CreateApiKey(ctx, label, userID) (rawKey string, error)`, `ValidateKey(ctx, rawKey) (ApiKey, error)`, `ListApiKeys(ctx) ([]ApiKey, error)`, `DeleteApiKey(ctx, id) error`
 - Raw key format: `ta_` prefix + 32 hex characters from `crypto/rand`
-- Key is hashed with `sha256.Sum256()` before storage
+- Key is hashed with `sha256.Sum256()` before storage in `api_keys.key_hash`
 - `ValidateKey` hashes the input and queries by hash — returns `ErrNotFound` if invalid
-- `CreateApiKey` returns the raw key string; the `ApiKey` struct in the database never contains the raw key
-- `ListApiKeys` returns id, label, user_name, created_at — never the hash
+- `CreateApiKey` returns the raw key string exactly once; neither `User` nor `ApiKey` persistence models contain raw keys
+- `ListApiKeys` returns metadata only (id, label, user_id, user_name, created_at) — never the hash
 - Tests cover: create and validate, validate with wrong key, delete and then validate fails, list returns metadata only
 
 **Definition of Done — Learning Objective:**
