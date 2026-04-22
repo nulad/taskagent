@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,6 +12,12 @@ import (
 type Store struct {
 	DB *sql.DB
 }
+
+var (
+	ErrNotFound         = errors.New("not found")
+	ErrInvalidInput     = errors.New("invalid input")
+	ErrPermissionDenied = errors.New("permission denied")
+)
 
 func NewStore(dbPath string) (*Store, error) {
 	dsn := dbPath
