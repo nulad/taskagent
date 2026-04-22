@@ -438,6 +438,9 @@ Review all endpoints for consistent error handling and input validation. Every e
 - Validation: title max 500 chars, description max 5000 chars, project name max 100 chars, tags max 20 items
 - No endpoint returns a plain text error or an HTML error page
 - Tests verify error response format for each error category
+- CORS middleware is applied to all routes: allowed origins configurable via `TASKAGENT_CORS_ORIGINS` env var (comma-separated), allowed methods `GET, POST, PUT, PATCH, DELETE`, allowed headers include `X-API-Key` and `Content-Type`, preflight `OPTIONS` requests return 204 with the appropriate headers
+- Default `TASKAGENT_CORS_ORIGINS` is empty (no cross-origin access); the React dashboard deployment sets this to its origin
+- Tests verify: preflight request returns correct headers, disallowed origin is rejected, allowed origin receives the `Access-Control-Allow-Origin` header on actual requests
 
 **Definition of Done — Learning Objective:**
 - Understand HTTP status code contracts: AI agents use status codes programmatically (if 404, create the resource; if 409, resolve the conflict; if 422, fix the input) — consistent and correct status codes are more important for agent consumers than for humans
