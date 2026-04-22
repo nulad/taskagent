@@ -446,6 +446,8 @@ Review all endpoints for consistent error handling and input validation. Every e
 - Understand HTTP status code contracts: AI agents use status codes programmatically (if 404, create the resource; if 409, resolve the conflict; if 422, fix the input) — consistent and correct status codes are more important for agent consumers than for humans
 - Practice the error response contract: a consistent `{"error": "message"}` structure means agents can always parse the error the same way — inconsistency here forces agents to handle special cases
 - Understand idempotency considerations: `PUT` should be idempotent (putting the same data twice produces the same result) — think about whether `DELETE` on a non-existent resource should return 404 or 204
+- Understand CORS and the browser security model: cross-origin XHR/fetch is blocked by default, and the server opts in by returning `Access-Control-Allow-Origin` — the preflight `OPTIONS` request is the browser asking "is this method+header combo allowed?" before sending the real request
+- Understand why CORS is server-side only: the browser enforces it, but the policy is declared by the server — a misconfigured `Access-Control-Allow-Origin: *` combined with credentials is a real security hole, so keep the allowlist explicit and driven by config
 
 ---
 
