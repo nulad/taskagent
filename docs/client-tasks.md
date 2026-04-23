@@ -363,24 +363,26 @@ From the kanban board, a "New task" button per column opens a form pre-filled wi
 
 ---
 
-### D-007: Dockerfile and Fly.io deployment
+### D-007: Dockerfile and portable deployment
 
 **Description:**
-Multi-stage Dockerfile for the React Router v7 app: build stage runs `pnpm build`, runtime stage runs the RR7 server via Node. `fly.toml` configures the app, internal port, and build env. The `VITE_TASKAGENT_API_BASE` is set at build time via build args. Deploy to Fly.io as a separate app from the API server.
+Multi-stage Dockerfile for the React Router v7 app: build stage runs `pnpm build`, runtime stage runs the RR7 server via Node. Extend the root `docker-compose.yml` (from T-052) with a second service for the dashboard, wired to the same Docker network as the API. `VITE_TASKAGENT_API_BASE` is set at build time via a build arg. The dashboard image is vendor-neutral — same packaging story as the API server (runs on any OCI host, no provider-specific config).
 
 **Definition of Done — Task:**
 - `web/Dockerfile` multi-stage: `node:22-alpine` for build, `node:22-alpine` for runtime
 - `pnpm install --frozen-lockfile` → `pnpm build` → copy `build/` and `node_modules/` (production only) into runtime image
-- `web/fly.toml` configures app name, internal port 3000, auto-stop/auto-start
-- `VITE_TASKAGENT_API_BASE` is a build arg and surfaces the deployed API URL
-- `fly deploy` succeeds and the `/login` page loads
-- Login with a real API key issued by the deployed API server works end-to-end (create project → move task → see it on the board)
+- Runtime stage runs as a non-root user
+- `VITE_TASKAGENT_API_BASE` is a build arg baked into the bundle
+- `docker-compose.yml` adds a `web` service mapping port 3000, alongside the existing `api` service, so `docker compose up` brings the whole stack live locally
+- The dashboard, hit at `http://localhost:3000`, logs in with a key from the local API and round-trips a create → move → see-on-board flow
+- `docs/deployment.md` covers the generic two-service VPS deploy (same compose file works remotely) and calls out that the API and dashboard can be split onto separate hosts or registries if needed
 - Final runtime image is under 200MB
 
 **Definition of Done — Learning Objective:**
 - Understand build-time vs runtime config for SPAs and frameworks: `import.meta.env.VITE_*` is baked into the JS bundle at build time — runtime env changes require a rebuild, which is a tradeoff vs server-rendered frameworks where env can be injected per-request
-- Understand why two Fly apps (API + web) instead of one: keeping them separate means the API can be scaled, deployed, and rate-limited independently of the dashboard, and the dashboard can be torn down entirely without affecting the CLI
-- Practice cross-origin considerations: the dashboard at `dashboard.fly.dev` calling the API at `api.fly.dev` needs CORS configured on the API server — add that to the T-051 validation review if not already present
+- Understand why two images (API + web) instead of one: keeping them separate means the API can be scaled, deployed, and updated independently of the dashboard, and the dashboard can be torn down entirely without affecting the CLI — this separation holds regardless of where they're hosted
+- Practice cross-origin considerations: when the dashboard and API are served from different hostnames in production, CORS must be configured on the API server (covered in T-051) — the specific origin values are deploy-time config, not code
+- Understand multi-service docker-compose: the `web` service can reference `api` by service name on the internal Docker network, which is the same shape as Kubernetes service discovery — learn the primitive once, it transfers everywhere
 
 ---
 

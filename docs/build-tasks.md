@@ -451,24 +451,30 @@ Review all endpoints for consistent error handling and input validation. Every e
 
 ---
 
-### T-052: Add Dockerfile and Fly.io deployment config
+### T-052: Add Dockerfile and docker-compose for portable deployment
 
 **Description:**
-Create a multi-stage Dockerfile that builds the Go binary and produces a minimal runtime image. Add a `fly.toml` configuration for deployment to Fly.io. The SQLite database file should be stored on a Fly volume for persistence.
+Create a multi-stage Dockerfile that builds the Go binary and produces a minimal runtime image. Add a `docker-compose.yml` for local and single-host deployment that mounts a host directory as the SQLite persistence volume. The container image is vendor-neutral — it runs on any host that speaks OCI (plain Docker, Podman, Kubernetes, Nomad, or any PaaS that accepts a container). Add a short `docs/deployment.md` showing how to run it on a generic VPS so "deployed end-to-end" stays the completion bar without prescribing any specific provider.
 
 **Definition of Done — Task:**
-- `Dockerfile` uses a multi-stage build: `golang:1.22-alpine` for build, `alpine:latest` for runtime
+- `Dockerfile` uses a multi-stage build: `golang:1.22-alpine` for build, `alpine:latest` (or `gcr.io/distroless/static` / `scratch`) for runtime
+- Build with `CGO_ENABLED=0` so the binary is fully static
 - Final image contains only the binary and ca-certificates (for any future HTTPS calls)
-- `fly.toml` configures: app name, internal port 8080, auto-stop/auto-start machines, a mounted volume for the database file
-- `DATABASE_PATH` env var points to the volume mount path
-- `fly deploy` succeeds and the health endpoint responds
+- Container runs as a non-root user
+- `EXPOSE 8080` and the binary reads `TASKAGENT_LISTEN_ADDR`, `TASKAGENT_DB_PATH`, `TASKAGENT_LOG_LEVEL`, `TASKAGENT_CORS_ORIGINS` from env
+- A `HEALTHCHECK` instruction hits `GET /health`
+- `docker-compose.yml` defines one service, maps port 8080, and bind-mounts `./data` → `/data`; sets `TASKAGENT_DB_PATH=/data/taskagent.db`
+- `docker compose up` starts cleanly, the health check turns healthy, and the API round-trips through the container (seed a key, create a project, verify persistence survives `docker compose restart`)
+- `docs/deployment.md` documents the generic VPS flow: build → push to any registry → `docker compose pull && docker compose up -d` on the host — plus a one-paragraph note that provider-specific configs (Fly, Railway, Render, Kubernetes manifests) are intentionally out of scope and left to the operator
 - Image size is under 20MB
 
 **Definition of Done — Learning Objective:**
 - Understand multi-stage Docker builds: the build stage includes the full Go toolchain (~1GB), but the final image copies only the compiled binary (~10-15MB) — this reduces image size, attack surface, and pull time
-- Understand CGO_ENABLED=0: setting this ensures a fully static binary (especially important since `modernc.org/sqlite` is pure Go) — the binary runs on `scratch` or `alpine` without glibc
-- Understand Fly volumes: Fly.io machines are ephemeral by default — without a volume, the SQLite database is lost on every deploy; a volume provides persistent block storage mounted into the container filesystem
+- Understand `CGO_ENABLED=0`: setting this ensures a fully static binary (especially important since `modernc.org/sqlite` is pure Go) — the binary runs on `scratch`, `distroless`, or `alpine` without glibc
+- Understand why vendor-neutral packaging matters: shipping an OCI image + docker-compose keeps the deployment target pluggable — the same artifact runs on a home lab, a VPS, Kubernetes, or any container PaaS, so the "which host" decision can be deferred or changed without rewriting deploy config
+- Understand the persistence contract for SQLite in containers: container filesystems are ephemeral, so the DB file must live on a bind mount or named volume — this is the one stateful hook the operator has to wire up regardless of platform
 - Practice the `COPY --from=builder` pattern: selectively copy artifacts from the build stage to keep the final image minimal
+- Understand why non-root containers matter: running as root inside a container is a defense-in-depth hole — a container escape as root is far more dangerous than as an unprivileged user
 
 ---
 
