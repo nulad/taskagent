@@ -9,25 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nulad/taskagent/internal/model"
 )
-
-type Task struct {
-	ID          string   `json:"id"`
-	ProjectID   string   `json:"project_id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	Tags        []string `json:"tags"`
-	CreatedAt   string   `json:"created_at"`
-	UpdatedAt   string   `json:"updated_at"`
-}
-
-type TaskFilter struct {
-	ProjectID *string
-	Status    *string
-	Limit     int
-	Offset    int
-}
 
 func (s *Store) statusExists(ctx context.Context, name string) (bool, error) {
 	var exists bool
@@ -38,7 +21,7 @@ func (s *Store) statusExists(ctx context.Context, name string) (bool, error) {
 	return exists, nil
 }
 
-func (s *Store) CreateTask(ctx context.Context, task *Task) error {
+func (s *Store) CreateTask(ctx context.Context, task *model.Task) error {
 	if task == nil || task.ProjectID == "" || task.Title == "" {
 		return ErrInvalidInput
 	}
@@ -50,7 +33,7 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) error {
 	if task.Status == "" {
 		task.Status = "backlog"
 	}
-	ok, err := s.statusExists(ctx, task.Status)
+	ok, err := s.statusExists(ctx, task.Status.String())
 	if err != nil {
 		return err
 	}
@@ -88,9 +71,9 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) error {
 	return nil
 }
 
-func (s *Store) GetTask(ctx context.Context, id string) (Task, error) {
+func (s *Store) GetTask(ctx context.Context, id string) (model.Task, error) {
 	if id == "" {
-		return Task{}, ErrInvalidInput
+		return model.Task{}, ErrInvalidInput
 	}
 
 	var tagsJSON string
@@ -110,7 +93,7 @@ func (s *Store) GetTask(ctx context.Context, id string) (Task, error) {
 		WHERE t.uuid = ?
 		`
 
-	var task Task
+	var task model.Task
 	err := s.DB.QueryRowContext(ctx, query, id).Scan(
 		&task.ID,
 		&task.ProjectID,
@@ -123,19 +106,19 @@ func (s *Store) GetTask(ctx context.Context, id string) (Task, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Task{}, ErrNotFound
+			return model.Task{}, ErrNotFound
 		}
-		return Task{}, err
+		return model.Task{}, err
 	}
 	if err := json.Unmarshal([]byte(tagsJSON), &task.Tags); err != nil {
-		return Task{}, err
+		return model.Task{}, err
 	}
 
 	return task, nil
 }
 
-func (s *Store) ListTasks(ctx context.Context, filter TaskFilter) ([]Task, error) {
-	tasks := []Task{}
+func (s *Store) ListTasks(ctx context.Context, filter model.TaskFilter) ([]model.Task, error) {
+	tasks := []model.Task{}
 
 	query := `
 		SELECT
@@ -188,7 +171,7 @@ func (s *Store) ListTasks(ctx context.Context, filter TaskFilter) ([]Task, error
 
 	for rows.Next() {
 		var tagsJSON string
-		var task Task
+		var task model.Task
 
 		err := rows.Scan(
 			&task.ID,
@@ -216,12 +199,12 @@ func (s *Store) ListTasks(ctx context.Context, filter TaskFilter) ([]Task, error
 	return tasks, nil
 }
 
-func (s *Store) UpdateTask(ctx context.Context, task *Task) error {
+func (s *Store) UpdateTask(ctx context.Context, task *model.Task) error {
 	if task == nil || task.ID == "" || task.Title == "" || task.ProjectID == "" || task.Status == "" {
 		return ErrInvalidInput
 	}
 
-	ok, err := s.statusExists(ctx, task.Status)
+	ok, err := s.statusExists(ctx, task.Status.String())
 	if err != nil {
 		return err
 	}

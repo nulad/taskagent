@@ -9,15 +9,9 @@ import (
 	"errors"
 	"strings"
 	"time"
-)
 
-type ApiKey struct {
-	ID        int64  `json:"id"`
-	Label     string `json:"label"`
-	UserID    int64  `json:"user_id"`
-	UserName  string `json:"user_name"`
-	CreatedAt string `json:"created_at"`
-}
+	"github.com/nulad/taskagent/internal/model"
+)
 
 func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (string, error) {
 	if userID <= 0 {
@@ -43,9 +37,9 @@ func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (s
 	return rawKey, nil
 }
 
-func (s *Store) ValidateKey(ctx context.Context, rawKey string) (ApiKey, error) {
+func (s *Store) ValidateKey(ctx context.Context, rawKey string) (model.ApiKey, error) {
 	if rawKey == "" || !strings.HasPrefix(rawKey, "ta_") {
-		return ApiKey{}, ErrNotFound
+		return model.ApiKey{}, ErrNotFound
 	}
 
 	hashed := hashKey(rawKey)
@@ -55,25 +49,25 @@ func (s *Store) ValidateKey(ctx context.Context, rawKey string) (ApiKey, error) 
 		JOIN users u ON u.id = k.user_id
 		WHERE k.key_hash = ?
 	`
-	var apiKey ApiKey
+	var apiKey model.ApiKey
 	err := s.DB.QueryRowContext(ctx, query, hashed).Scan(&apiKey.ID, &apiKey.Label, &apiKey.UserID, &apiKey.UserName, &apiKey.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ApiKey{}, ErrNotFound
+			return model.ApiKey{}, ErrNotFound
 		}
-		return ApiKey{}, err
+		return model.ApiKey{}, err
 	}
 	return apiKey, nil
 }
 
-func (s *Store) ListApiKeys(ctx context.Context) ([]ApiKey, error) {
+func (s *Store) ListApiKeys(ctx context.Context) ([]model.ApiKey, error) {
 	query := `
 		SELECT k.id, COALESCE(k.label, ''), k.user_id, u.name, k.created_at
 		FROM api_keys k
 		JOIN users u ON u.id = k.user_id
 		ORDER BY k.created_at DESC
 	`
-	var apiKeys []ApiKey
+	var apiKeys []model.ApiKey
 	rows, err := s.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -81,7 +75,7 @@ func (s *Store) ListApiKeys(ctx context.Context) ([]ApiKey, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var apiKey ApiKey
+		var apiKey model.ApiKey
 		err := rows.Scan(&apiKey.ID, &apiKey.Label, &apiKey.UserID, &apiKey.UserName, &apiKey.CreatedAt)
 		if err != nil {
 			return nil, err

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/nulad/taskagent/internal/model"
 )
 
 func newTestStore(t *testing.T) *Store {
@@ -24,7 +26,7 @@ func TestProjectStore_CreateAndRetrieve(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	id, err := s.CreateProject(ctx, &Project{
+	id, err := s.CreateProject(ctx, &model.Project{
 		Name:        "Test Project",
 		Description: "A test description",
 	})
@@ -52,12 +54,12 @@ func TestProjectStore_CreateDuplicateName(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	_, err := s.CreateProject(ctx, &Project{Name: "Duplicate"})
+	_, err := s.CreateProject(ctx, &model.Project{Name: "Duplicate"})
 	if err != nil {
 		t.Fatalf("first CreateProject() error = %v", err)
 	}
 
-	_, err = s.CreateProject(ctx, &Project{Name: "Duplicate"})
+	_, err = s.CreateProject(ctx, &model.Project{Name: "Duplicate"})
 	if err == nil {
 		t.Fatal("expected duplicate name error, got nil")
 	}
@@ -69,7 +71,7 @@ func TestProjectStore_GetProject_Errors(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		id     string
+		id      string
 		wantErr error
 	}{
 		{
@@ -100,7 +102,7 @@ func TestProjectStore_CreateProject_Errors(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		project *Project
+		project *model.Project
 		wantErr error
 	}{
 		{
@@ -110,7 +112,7 @@ func TestProjectStore_CreateProject_Errors(t *testing.T) {
 		},
 		{
 			name:    "empty name",
-			project: &Project{Name: ""},
+			project: &model.Project{Name: ""},
 			wantErr: ErrInvalidInput,
 		},
 	}
@@ -129,40 +131,40 @@ func TestProjectStore_UpdateProject(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	id, err := s.CreateProject(ctx, &Project{Name: "Original"})
+	id, err := s.CreateProject(ctx, &model.Project{Name: "Original"})
 	if err != nil {
 		t.Fatalf("CreateProject() error = %v", err)
 	}
 
 	tests := []struct {
-		name     string
-		project *Project
+		name    string
+		project *model.Project
 		wantErr error
 	}{
 		{
-			name: "update existing",
-			project: &Project{ID: id, Name: "Updated", Description: "New desc"},
+			name:    "update existing",
+			project: &model.Project{ID: id, Name: "Updated", Description: "New desc"},
 			wantErr: nil,
 		},
 		{
-			name:     "nil project",
-			project:  nil,
-			wantErr:  ErrInvalidInput,
+			name:    "nil project",
+			project: nil,
+			wantErr: ErrInvalidInput,
 		},
 		{
-			name:     "empty id",
-			project:  &Project{ID: "", Name: "Name"},
-			wantErr:  ErrInvalidInput,
+			name:    "empty id",
+			project: &model.Project{ID: "", Name: "Name"},
+			wantErr: ErrInvalidInput,
 		},
 		{
-			name:     "empty name",
-			project:  &Project{ID: id, Name: ""},
-			wantErr:  ErrInvalidInput,
+			name:    "empty name",
+			project: &model.Project{ID: id, Name: ""},
+			wantErr: ErrInvalidInput,
 		},
 		{
-			name:     "update non-existent",
-			project:  &Project{ID: "missing-id", Name: "Name"},
-			wantErr:  ErrNotFound,
+			name:    "update non-existent",
+			project: &model.Project{ID: "missing-id", Name: "Name"},
+			wantErr: ErrNotFound,
 		},
 	}
 
@@ -197,29 +199,29 @@ func TestProjectStore_DeleteProject(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	id, err := s.CreateProject(ctx, &Project{Name: "To Delete"})
+	id, err := s.CreateProject(ctx, &model.Project{Name: "To Delete"})
 	if err != nil {
 		t.Fatalf("CreateProject() error = %v", err)
 	}
 
 	tests := []struct {
 		name    string
-		id     string
+		id      string
 		wantErr error
 	}{
 		{
 			name:    "delete existing",
-			id:     id,
+			id:      id,
 			wantErr: nil,
 		},
 		{
 			name:    "empty id",
-			id:     "",
+			id:      "",
 			wantErr: ErrInvalidInput,
 		},
 		{
 			name:    "delete non-existent",
-			id:     "missing-id",
+			id:      "missing-id",
 			wantErr: ErrNotFound,
 		},
 	}
@@ -250,20 +252,20 @@ func TestProjectStore_DeleteProject(t *testing.T) {
 
 func TestProjectStore_ListProjects(t *testing.T) {
 	tests := []struct {
-		name      string
-		setup    func(*Store, context.Context) (string, error)
-		wantLen  int
+		name    string
+		setup   func(*Store, context.Context) (string, error)
+		wantLen int
 	}{
 		{
-			name:     "list empty",
-			setup:    nil,
+			name:    "list empty",
+			setup:   nil,
 			wantLen: 0,
 		},
 		{
 			name: "list multiple",
 			setup: func(s *Store, ctx context.Context) (string, error) {
 				for _, name := range []string{"Project1", "Project2", "Project3"} {
-					if _, err := s.CreateProject(ctx, &Project{Name: name}); err != nil {
+					if _, err := s.CreateProject(ctx, &model.Project{Name: name}); err != nil {
 						return "", err
 					}
 				}
@@ -275,7 +277,7 @@ func TestProjectStore_ListProjects(t *testing.T) {
 			name: "list multiple then delete one",
 			setup: func(s *Store, ctx context.Context) (string, error) {
 				for _, name := range []string{"ListProj1", "ListProj2"} {
-					if _, err := s.CreateProject(ctx, &Project{Name: name}); err != nil {
+					if _, err := s.CreateProject(ctx, &model.Project{Name: name}); err != nil {
 						return "", err
 					}
 				}

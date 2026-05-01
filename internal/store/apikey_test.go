@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/nulad/taskagent/internal/model"
 )
 
 func TestApiKeyStore_CreateAndValidate(t *testing.T) {
@@ -138,10 +140,10 @@ func TestApiKeyStore_ListApiKeys_MetadataOnly(t *testing.T) {
 		}
 	}
 
-	if _, ok := reflect.TypeOf(ApiKey{}).FieldByName("KeyHash"); ok {
+	if _, ok := reflect.TypeOf(model.ApiKey{}).FieldByName("KeyHash"); ok {
 		t.Fatal("ApiKey struct should not expose key hash")
 	}
-	if _, ok := reflect.TypeOf(ApiKey{}).FieldByName("RawKey"); ok {
+	if _, ok := reflect.TypeOf(model.ApiKey{}).FieldByName("RawKey"); ok {
 		t.Fatal("ApiKey struct should not expose raw key")
 	}
 }
@@ -168,4 +170,3 @@ func TestApiKeyStore_DeleteApiKey_Errors(t *testing.T) {
 		})
 	}
 }
-

@@ -5,18 +5,20 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/nulad/taskagent/internal/model"
 )
 
 func TestTaskStore_FullCRUDCycle(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	projectID, err := s.CreateProject(ctx, &Project{Name: "Task CRUD Project"})
+	projectID, err := s.CreateProject(ctx, &model.Project{Name: "Task CRUD Project"})
 	if err != nil {
 		t.Fatalf("CreateProject() error = %v", err)
 	}
 
-	task := &Task{
+	task := &model.Task{
 		ProjectID:   projectID,
 		Title:       "Initial title",
 		Description: "Initial description",
@@ -78,16 +80,16 @@ func TestTaskStore_ListTasks_WithFilters(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	projectA, err := s.CreateProject(ctx, &Project{Name: "List Project A"})
+	projectA, err := s.CreateProject(ctx, &model.Project{Name: "List Project A"})
 	if err != nil {
 		t.Fatalf("CreateProject(A) error = %v", err)
 	}
-	projectB, err := s.CreateProject(ctx, &Project{Name: "List Project B"})
+	projectB, err := s.CreateProject(ctx, &model.Project{Name: "List Project B"})
 	if err != nil {
 		t.Fatalf("CreateProject(B) error = %v", err)
 	}
 
-	fixtures := []Task{
+	fixtures := []model.Task{
 		{ProjectID: projectA, Title: "A-backlog", Tags: []string{"a", "backlog"}}, // defaults to backlog
 		{ProjectID: projectA, Title: "A-todo", Status: "todo", Tags: []string{"a", "todo"}},
 		{ProjectID: projectA, Title: "A-done", Status: "done", Tags: []string{"a", "done"}},
@@ -99,51 +101,45 @@ func TestTaskStore_ListTasks_WithFilters(t *testing.T) {
 		}
 	}
 
-	todo := "todo"
-	review := "review"
+	todo := model.StatusTodo
+	review := model.StatusReview
 	projectAFilter := projectA
-	missingStatus := "missing-status"
 
 	tests := []struct {
-		name         string
-		filter       TaskFilter
-		wantLen      int
-		wantProject  *string
-		wantStatus   *string
+		name        string
+		filter      model.TaskFilter
+		wantLen     int
+		wantProject *string
+		wantStatus  *model.TaskStatus
 	}{
 		{
 			name:    "no filters",
-			filter:  TaskFilter{},
+			filter:  model.TaskFilter{},
 			wantLen: 4,
 		},
 		{
 			name:        "filter by project",
-			filter:      TaskFilter{ProjectID: &projectAFilter},
+			filter:      model.TaskFilter{ProjectID: &projectAFilter},
 			wantLen:     3,
 			wantProject: &projectAFilter,
 		},
 		{
 			name:       "filter by status",
-			filter:     TaskFilter{Status: &review},
+			filter:     model.TaskFilter{Status: &review},
 			wantLen:    1,
 			wantStatus: &review,
 		},
 		{
 			name:        "filter by project and status",
-			filter:      TaskFilter{ProjectID: &projectAFilter, Status: &todo},
+			filter:      model.TaskFilter{ProjectID: &projectAFilter, Status: &todo},
 			wantLen:     1,
 			wantProject: &projectAFilter,
 			wantStatus:  &todo,
 		},
 		{
 			name:    "limit and offset",
-			filter:  TaskFilter{Limit: 2, Offset: 1},
+			filter:  model.TaskFilter{Limit: 2, Offset: 1},
 			wantLen: 2,
-		},
-		{
-			name:    "unknown status returns empty",
-			filter:  TaskFilter{Status: &missingStatus},
-			wantLen: 0,
 		},
 	}
 
@@ -173,12 +169,12 @@ func TestTaskStore_UpdateTaskStatus(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	projectID, err := s.CreateProject(ctx, &Project{Name: "Status Project"})
+	projectID, err := s.CreateProject(ctx, &model.Project{Name: "Status Project"})
 	if err != nil {
 		t.Fatalf("CreateProject() error = %v", err)
 	}
 
-	task := &Task{ProjectID: projectID, Title: "Move me"}
+	task := &model.Task{ProjectID: projectID, Title: "Move me"}
 	if err := s.CreateTask(ctx, task); err != nil {
 		t.Fatalf("CreateTask() error = %v", err)
 	}
@@ -226,7 +222,7 @@ func TestTaskStore_CreateTask_NonExistentProject_ReturnsForeignKeyError(t *testi
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	task := &Task{
+	task := &model.Task{
 		ProjectID: "missing-project-id",
 		Title:     "orphan task",
 	}

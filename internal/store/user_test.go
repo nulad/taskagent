@@ -49,9 +49,9 @@ func TestUserStore_CreateUser_Errors(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name    string
+		name     string
 		userName string
-		wantErr error
+		wantErr  error
 	}{
 		{name: "empty", userName: "", wantErr: ErrInvalidInput},
 		{name: "whitespace-only", userName: "   ", wantErr: ErrInvalidInput},
@@ -89,4 +89,3 @@ func TestUserStore_GetUserByName_Errors(t *testing.T) {
 		})
 	}
 }
-

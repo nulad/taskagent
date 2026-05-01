@@ -7,17 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/nulad/taskagent/internal/model"
 )
 
-type Project struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-}
-
-func (s *Store) CreateProject(ctx context.Context, project *Project) (string, error) {
+func (s *Store) CreateProject(ctx context.Context, project *model.Project) (string, error) {
 	if project == nil || project.Name == "" {
 		return "", ErrInvalidInput
 	}
@@ -37,9 +31,9 @@ func (s *Store) CreateProject(ctx context.Context, project *Project) (string, er
 	return id, nil
 }
 
-func (s *Store) GetProject(ctx context.Context, id string) (Project, error) {
+func (s *Store) GetProject(ctx context.Context, id string) (model.Project, error) {
 	if id == "" {
-		return Project{}, ErrInvalidInput
+		return model.Project{}, ErrInvalidInput
 	}
 
 	query := `
@@ -48,7 +42,7 @@ func (s *Store) GetProject(ctx context.Context, id string) (Project, error) {
 		WHERE uuid = ?
 		`
 
-	var project Project
+	var project model.Project
 	err := s.DB.QueryRowContext(ctx, query, id).Scan(
 		&project.ID,
 		&project.Name,
@@ -58,20 +52,20 @@ func (s *Store) GetProject(ctx context.Context, id string) (Project, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Project{}, ErrNotFound
+			return model.Project{}, ErrNotFound
 		}
-		return Project{}, err
+		return model.Project{}, err
 	}
 	return project, nil
 }
 
-func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
+func (s *Store) ListProjects(ctx context.Context) ([]model.Project, error) {
 	query := `
 		SELECT uuid, name, description, created_at, updated_at 
 		FROM projects 
 		`
 
-	var projects []Project
+	var projects []model.Project
 	rows, err := s.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -79,7 +73,7 @@ func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var project Project
+		var project model.Project
 		err := rows.Scan(
 			&project.ID,
 			&project.Name,
@@ -99,7 +93,7 @@ func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
 	return projects, nil
 }
 
-func (s *Store) UpdateProject(ctx context.Context, project *Project) error {
+func (s *Store) UpdateProject(ctx context.Context, project *model.Project) error {
 
 	if project == nil || project.ID == "" || project.Name == "" {
 		return ErrInvalidInput
