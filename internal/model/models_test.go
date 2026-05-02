@@ -42,6 +42,11 @@ func TestValidStatus(t *testing.T) {
 			want:  true,
 		},
 		{
+			name:  "closed",
+			input: "closed",
+			want:  true,
+		},
+		{
 			name:  "empty string",
 			input: "",
 			want:  false,

@@ -35,6 +35,7 @@ const (
 	StatusInProgress TaskStatus = "in-progress"
 	StatusReview     TaskStatus = "review"
 	StatusDone       TaskStatus = "done"
+	StatusClosed     TaskStatus = "closed"
 )
 
 type TaskFilter struct {
@@ -59,7 +60,7 @@ func (s TaskStatus) String() string {
 
 func ValidStatus(s string) bool {
 	switch TaskStatus(s) {
-	case StatusBacklog, StatusTodo, StatusInProgress, StatusReview, StatusDone:
+	case StatusBacklog, StatusTodo, StatusInProgress, StatusReview, StatusDone, StatusClosed:
 		return true
 	default:
 		return false

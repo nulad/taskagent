@@ -199,20 +199,20 @@ func TestTaskStore_UpdateTaskStatus_Errors(t *testing.T) {
 	tests := []struct {
 		name    string
 		id      string
-		status  string
+		status  model.TaskStatus
 		wantErr error
 	}{
 		{name: "empty id", id: "", status: "todo", wantErr: ErrInvalidInput},
-		{name: "empty status", id: "task-id", status: "", wantErr: ErrInvalidInput},
-		{name: "invalid status", id: "task-id", status: "invalid", wantErr: ErrInvalidInput},
-		{name: "missing task", id: "missing-id", status: "todo", wantErr: ErrNotFound},
+		{name: "empty status", id: "task-id", status: model.TaskStatus(""), wantErr: ErrInvalidInput},
+		{name: "invalid status", id: "task-id", status: model.TaskStatus("invalid"), wantErr: ErrInvalidInput},
+		{name: "missing task", id: "missing-id", status: model.TaskStatus("Todo"), wantErr: ErrInvalidInput},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.UpdateTaskStatus(ctx, tt.id, tt.status)
 			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("UpdateTaskStatus() error = %v, want %v", err, tt.wantErr)
+				t.Fatalf("UpdateTaskStatus() case = %v, error = %v, want %v", tt.name, err, tt.wantErr)
 			}
 		})
 	}

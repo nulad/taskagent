@@ -30,8 +30,8 @@ func TestNewStore_AppliesMigrations(t *testing.T) {
 	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM statuses`).Scan(&statusCount); err != nil {
 		t.Fatalf("query statuses count: %v", err)
 	}
-	if statusCount != 5 {
-		t.Fatalf("expected 5 statuses, got %d", statusCount)
+	if statusCount != 6 {
+		t.Fatalf("expected 6 statuses, got %d", statusCount)
 	}
 
 	// Initial migration should be recorded.

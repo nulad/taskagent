@@ -16,7 +16,8 @@ INSERT OR IGNORE INTO statuses (id, name) VALUES
     (2, 'todo'),
     (3, 'in-progress'),
     (4, 'review'),
-    (5, 'done');
+    (5, 'done'),
+    (6, 'closed');
 
 CREATE TABLE IF NOT EXISTS tasks (
     uuid TEXT PRIMARY KEY,

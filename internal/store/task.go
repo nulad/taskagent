@@ -282,12 +282,12 @@ func (s *Store) DeleteTask(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Store) UpdateTaskStatus(ctx context.Context, id string, status string) error {
-	if id == "" || status == "" {
+func (s *Store) UpdateTaskStatus(ctx context.Context, id string, status model.TaskStatus) error {
+	if id == "" || status.String() == "" {
 		return ErrInvalidInput
 	}
 
-	ok, err := s.statusExists(ctx, status)
+	ok, err := s.statusExists(ctx, status.String())
 	if err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func (s *Store) UpdateTaskStatus(ctx context.Context, id string, status string) 
 	result, err := s.DB.ExecContext(
 		ctx,
 		query,
-		status,
+		status.String(),
 		currTimestamp,
 		id,
 	)
