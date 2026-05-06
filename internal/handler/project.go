@@ -36,7 +36,7 @@ func (h *ProjectHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if project.Name == "" {
-		writeError(w, http.StatusBadRequest, "project name is required")
+		writeError(w, http.StatusUnprocessableEntity, "project name is required")
 		return
 	}
 
