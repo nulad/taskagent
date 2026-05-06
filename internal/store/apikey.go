@@ -13,14 +13,14 @@ import (
 	"github.com/nulad/taskagent/internal/model"
 )
 
-func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (string, error) {
+func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (int64, string, error) {
 	if userID <= 0 {
-		return "", ErrInvalidInput
+		return 0, "", ErrInvalidInput
 	}
 
 	rawKey, err := generateRawKey()
 	if err != nil {
-		return "", err
+		return 0, "", err
 	}
 
 	hashedKey := hashKey(rawKey)
@@ -30,11 +30,17 @@ func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (s
 		INSERT INTO api_keys (user_id, key_hash, label, created_at)
 		VALUES (?, ?, ?, ?)
 	`
-	_, err = s.DB.ExecContext(ctx, query, userID, hashedKey, label, currTimestamp)
+	result, err := s.DB.ExecContext(ctx, query, userID, hashedKey, label, currTimestamp)
 	if err != nil {
-		return "", err
+		return 0, "", err
 	}
-	return rawKey, nil
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, "", err
+	}
+
+	return id, rawKey, nil
 }
 
 func (s *Store) ValidateKey(ctx context.Context, rawKey string) (model.ApiKey, error) {

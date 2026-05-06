@@ -19,7 +19,7 @@ func TestApiKeyStore_CreateAndValidate(t *testing.T) {
 		t.Fatalf("CreateUser() error = %v", err)
 	}
 
-	rawKey, err := s.CreateApiKey(ctx, "default", user.ID)
+	_, rawKey, err := s.CreateApiKey(ctx, "default", user.ID)
 	if err != nil {
 		t.Fatalf("CreateApiKey() error = %v", err)
 	}
@@ -83,7 +83,7 @@ func TestApiKeyStore_DeleteThenValidateFails(t *testing.T) {
 		t.Fatalf("CreateUser() error = %v", err)
 	}
 
-	rawKey, err := s.CreateApiKey(ctx, "temp", user.ID)
+	_, rawKey, err := s.CreateApiKey(ctx, "temp", user.ID)
 	if err != nil {
 		t.Fatalf("CreateApiKey() error = %v", err)
 	}
@@ -116,11 +116,11 @@ func TestApiKeyStore_ListApiKeys_MetadataOnly(t *testing.T) {
 		t.Fatalf("CreateUser(user-b) error = %v", err)
 	}
 
-	_, err = s.CreateApiKey(ctx, "a-key", userA.ID)
+	_, _, err = s.CreateApiKey(ctx, "a-key", userA.ID)
 	if err != nil {
 		t.Fatalf("CreateApiKey(a-key) error = %v", err)
 	}
-	_, err = s.CreateApiKey(ctx, "b-key", userB.ID)
+	_, _, err = s.CreateApiKey(ctx, "b-key", userB.ID)
 	if err != nil {
 		t.Fatalf("CreateApiKey(b-key) error = %v", err)
 	}

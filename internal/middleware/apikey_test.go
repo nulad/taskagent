@@ -75,7 +75,7 @@ func TestAuthMiddleware_ValidKey(t *testing.T) {
 		t.Fatalf("CreateUser() error = %v", err)
 	}
 
-	rawKey, err := s.CreateApiKey(ctx, "test-key", user.ID)
+	_, rawKey, err := s.CreateApiKey(ctx, "test-key", user.ID)
 	if err != nil {
 		t.Fatalf("CreateApiKey() error = %v", err)
 	}
