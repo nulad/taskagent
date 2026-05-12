@@ -30,9 +30,11 @@ type taskHandlerCase struct {
 func newTaskHandlerTestServer(t *testing.T) (*httptest.Server, *store.Store) {
 	t.Helper()
 
+	testLogger := testLogger()
+
 	s := newHandlerTestStore(t)
-	svc := service.NewTaskService(s)
-	h := NewTaskHandler(svc)
+	svc := service.NewTaskService(s, testLogger)
+	h := NewTaskHandler(svc, testLogger)
 
 	mux := http.NewServeMux()
 	RegisterTaskRoutes(mux, h)

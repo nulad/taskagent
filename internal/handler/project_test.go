@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,6 +29,10 @@ type projectHandlerCase struct {
 	assert     func(t *testing.T, s *store.Store, seed *projectHandlerSeed, status int, body []byte)
 }
 
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, nil))
+}
+
 func newHandlerTestStore(t *testing.T) *store.Store {
 	t.Helper()
 
@@ -45,9 +50,11 @@ func newHandlerTestStore(t *testing.T) *store.Store {
 func newProjectHandlerTestServer(t *testing.T) (*httptest.Server, *store.Store) {
 	t.Helper()
 
+	testLogger := testLogger()
+
 	s := newHandlerTestStore(t)
-	svc := service.NewProjectService(s)
-	h := NewProjectHandler(svc)
+	svc := service.NewProjectService(s, testLogger)
+	h := NewProjectHandler(svc, testLogger)
 
 	mux := http.NewServeMux()
 	RegisterProjectRoutes(mux, h)

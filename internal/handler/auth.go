@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -9,14 +10,13 @@ import (
 	"github.com/nulad/taskagent/internal/store"
 )
 
-// TODO log properly the error instead of just writing a generic message to the client
-
 type AuthHandler struct {
-	store *store.Store
+	store  *store.Store
+	logger *slog.Logger
 }
 
-func NewAuthHandler(store *store.Store) *AuthHandler {
-	return &AuthHandler{store: store}
+func NewAuthHandler(store *store.Store, logger *slog.Logger) *AuthHandler {
+	return &AuthHandler{store: store, logger: logger}
 }
 
 func RegisterAuthRoutes(mux *http.ServeMux, handler *AuthHandler) {
@@ -50,12 +50,27 @@ func (h *AuthHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.store.GetUserByName(r.Context(), req.UserName)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "user not found")
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+
+		h.logger.ErrorContext(r.Context(), "failed to get user by name",
+			"error", err,
+			"user_name", req.UserName,
+		)
+		writeError(w, http.StatusInternalServerError, "failed to get user")
 		return
 	}
 
 	id, rawKey, err := h.store.CreateApiKey(r.Context(), req.Label, user.ID)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to create API key",
+			"error", err,
+			"user_id", user.ID,
+			"user_name", req.UserName,
+			"label", req.Label,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to create API key")
 		return
 	}
@@ -73,6 +88,9 @@ type getKeyResponse struct {
 func (h *AuthHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	keys, err := h.store.ListApiKeys(r.Context())
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to list API keys",
+			"error", err,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to list API keys")
 		return
 	}
@@ -105,6 +123,10 @@ func (h *AuthHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	caller, ok := middleware.GetApiKey(r.Context())
 	if !ok {
+		h.logger.ErrorContext(r.Context(), "failed to get caller API key from context",
+			"error", "missing API key in request context",
+			"api_key_id", keyIDInt,
+		)
 		writeError(w, http.StatusInternalServerError, "cannot retrieve API key from context")
 		return
 	}
@@ -120,6 +142,10 @@ func (h *AuthHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "API key not found")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to delete API key",
+			"error", err,
+			"api_key_id", keyIDInt,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to delete API key")
 		return
 	}

@@ -20,7 +20,7 @@ func newTestService(t *testing.T) (*TaskService, *store.Store) {
 		_ = s.Close()
 	})
 
-	return NewTaskService(s), s
+	return NewTaskService(s, testLogger()), s
 }
 
 func seedProject(t *testing.T, s *store.Store) string {

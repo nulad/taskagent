@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -10,14 +11,13 @@ import (
 	"github.com/nulad/taskagent/internal/store"
 )
 
-// TODO log properly the error instead of just writing a generic message to the client
-
 type TaskHandler struct {
 	service *service.TaskService
+	logger  *slog.Logger
 }
 
-func NewTaskHandler(service *service.TaskService) *TaskHandler {
-	return &TaskHandler{service: service}
+func NewTaskHandler(service *service.TaskService, logger *slog.Logger) *TaskHandler {
+	return &TaskHandler{service: service, logger: logger}
 }
 
 func RegisterTaskRoutes(mux *http.ServeMux, handler *TaskHandler) {
@@ -44,12 +44,20 @@ func (h *TaskHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 
 	err = h.service.CreateTask(r.Context(), &task)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to create task",
+			"error", err,
+			"project_id", task.ProjectID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to create task")
 		return
 	}
 
 	resultTask, err := h.service.GetTask(r.Context(), task.ID)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to retrieve task",
+			"error", err,
+			"task_id", task.ID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to retrieve task")
 		return
 	}
@@ -70,6 +78,10 @@ func (h *TaskHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to retrieve task",
+			"error", err,
+			"task_id", taskID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to retrieve task")
 		return
 	}
@@ -101,6 +113,10 @@ func (h *TaskHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid task data")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to update task",
+			"error", err,
+			"task_id", task.ID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to update task")
 		return
 	}
@@ -111,6 +127,10 @@ func (h *TaskHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to retrieve task",
+			"error", err,
+			"task_id", task.ID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to retrieve task")
 		return
 	}
@@ -146,6 +166,10 @@ func (h *TaskHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to move task",
+			"error", err,
+			"task_id", taskID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to move task")
 		return
 	}
@@ -156,6 +180,10 @@ func (h *TaskHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to retrieve task",
+			"error", err,
+			"task_id", taskID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to retrieve task")
 		return
 	}
@@ -175,6 +203,10 @@ func (h *TaskHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
+		h.logger.ErrorContext(r.Context(), "failed to delete task",
+			"error", err,
+			"task_id", taskID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to delete task")
 		return
 	}
@@ -227,6 +259,9 @@ func (h *TaskHandler) handleList(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := h.service.ListTasks(r.Context(), filter)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to list tasks",
+			"error", err,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to list tasks")
 		return
 	}

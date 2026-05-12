@@ -2,17 +2,19 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/nulad/taskagent/internal/model"
 	"github.com/nulad/taskagent/internal/store"
 )
 
 type TaskService struct {
-	store *store.Store
+	store  *store.Store
+	logger *slog.Logger
 }
 
-func NewTaskService(store *store.Store) *TaskService {
-	return &TaskService{store: store}
+func NewTaskService(store *store.Store, logger *slog.Logger) *TaskService {
+	return &TaskService{store: store, logger: logger}
 }
 
 type InvalidTransitionError struct {

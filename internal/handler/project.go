@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/nulad/taskagent/internal/model"
@@ -9,14 +10,13 @@ import (
 	"github.com/nulad/taskagent/internal/store"
 )
 
-// TODO log properly the error instead of just writing a generic message to the client
-
 type ProjectHandler struct {
 	service *service.ProjectService
+	logger  *slog.Logger
 }
 
-func NewProjectHandler(service *service.ProjectService) *ProjectHandler {
-	return &ProjectHandler{service: service}
+func NewProjectHandler(service *service.ProjectService, logger *slog.Logger) *ProjectHandler {
+	return &ProjectHandler{service: service, logger: logger}
 }
 
 func RegisterProjectRoutes(mux *http.ServeMux, handler *ProjectHandler) {
@@ -42,12 +42,20 @@ func (h *ProjectHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 
 	createdProjectID, err := h.service.CreateProject(r.Context(), &project)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to create project",
+			"error", err,
+			"name", project.Name,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to create project")
 		return
 	}
 
 	resultProject, err := h.service.GetProject(r.Context(), createdProjectID)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to retrieve project",
+			"error", err,
+			"project_id", createdProjectID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to retrieve project")
 		return
 	}
@@ -67,6 +75,10 @@ func (h *ProjectHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "project not found")
 		} else {
+			h.logger.ErrorContext(r.Context(), "failed to retrieve project",
+				"error", err,
+				"project_id", projectID,
+			)
 			writeError(w, http.StatusInternalServerError, "failed to retrieve project")
 		}
 		return
@@ -96,6 +108,10 @@ func (h *ProjectHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		} else if errors.Is(err, store.ErrInvalidInput) {
 			writeError(w, http.StatusBadRequest, "invalid project data")
 		} else {
+			h.logger.ErrorContext(r.Context(), "failed to update project",
+				"error", err,
+				"project_id", projectID,
+			)
 			writeError(w, http.StatusInternalServerError, "failed to update project")
 		}
 		return
@@ -103,6 +119,10 @@ func (h *ProjectHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	project, err = h.service.GetProject(r.Context(), projectID)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to retrieve project",
+			"error", err,
+			"project_id", projectID,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to retrieve project")
 		return
 	}
@@ -126,6 +146,10 @@ func (h *ProjectHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		} else {
+			h.logger.ErrorContext(r.Context(), "failed to delete project",
+				"error", err,
+				"project_id", projectID,
+			)
 			writeError(w, http.StatusInternalServerError, "failed to delete project")
 			return
 		}
@@ -136,6 +160,9 @@ func (h *ProjectHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 func (h *ProjectHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	projects, err := h.service.ListProjects(r.Context())
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed to list projects",
+			"error", err,
+		)
 		writeError(w, http.StatusInternalServerError, "failed to list projects")
 		return
 	}

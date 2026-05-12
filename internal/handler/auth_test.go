@@ -35,8 +35,10 @@ type authHandlerCase struct {
 func newAuthHandlerTestServer(t *testing.T) (*httptest.Server, *store.Store) {
 	t.Helper()
 
+	testLogger := testLogger()
+
 	s := newHandlerTestStore(t)
-	h := NewAuthHandler(s)
+	h := NewAuthHandler(s, testLogger)
 
 	mux := http.NewServeMux()
 	RegisterAuthRoutes(mux, h)

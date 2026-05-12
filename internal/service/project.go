@@ -3,17 +3,19 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/nulad/taskagent/internal/model"
 	"github.com/nulad/taskagent/internal/store"
 )
 
 type ProjectService struct {
-	store *store.Store
+	store  *store.Store
+	logger *slog.Logger
 }
 
-func NewProjectService(store *store.Store) *ProjectService {
-	return &ProjectService{store: store}
+func NewProjectService(store *store.Store, logger *slog.Logger) *ProjectService {
+	return &ProjectService{store: store, logger: logger}
 }
 
 type ProjectHasTasksError struct {

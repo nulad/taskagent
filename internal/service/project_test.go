@@ -3,11 +3,17 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/model"
 	"github.com/nulad/taskagent/internal/store"
 )
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, nil))
+}
 
 func newProjectTestService(t *testing.T) (*ProjectService, *store.Store) {
 	t.Helper()
@@ -20,7 +26,7 @@ func newProjectTestService(t *testing.T) (*ProjectService, *store.Store) {
 		_ = s.Close()
 	})
 
-	return NewProjectService(s), s
+	return NewProjectService(s, testLogger()), s
 }
 
 func TestProjectService_DeleteProject_NoTasks(t *testing.T) {

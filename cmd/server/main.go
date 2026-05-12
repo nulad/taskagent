@@ -6,11 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/nulad/taskagent/internal/config"
 	"github.com/nulad/taskagent/internal/handler"
+	"github.com/nulad/taskagent/internal/logging"
 	"github.com/nulad/taskagent/internal/middleware"
 	"github.com/nulad/taskagent/internal/service"
 	"github.com/nulad/taskagent/internal/store"
@@ -33,18 +35,22 @@ func run(args []string) error {
 }
 
 func runServer(cfg config.Config) error {
+	logLevel := logging.ParseLevel(cfg.LogLevel)
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	logger := slog.New(logHandler)
+
 	appStore, err := store.NewStore(cfg.DatabasePath)
 	if err != nil {
 		return err
 	}
 	defer appStore.Close()
 
-	projectService := service.NewProjectService(appStore)
-	taskService := service.NewTaskService(appStore)
+	projectService := service.NewProjectService(appStore, logger)
+	taskService := service.NewTaskService(appStore, logger)
 
-	projectHandler := handler.NewProjectHandler(projectService)
-	taskHandler := handler.NewTaskHandler(taskService)
-	authHandler := handler.NewAuthHandler(appStore)
+	projectHandler := handler.NewProjectHandler(projectService, logger)
+	taskHandler := handler.NewTaskHandler(taskService, logger)
+	authHandler := handler.NewAuthHandler(appStore, logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -61,11 +67,19 @@ func runServer(cfg config.Config) error {
 	protectedAPI := middleware.AuthMiddleware(appStore)(protectedMux)
 	mux.Handle("/", protectedAPI)
 
-	log.Printf("listening on %s", cfg.ListenAddr)
-	return http.ListenAndServe(cfg.ListenAddr, mux)
+	finalHandler := middleware.RequestIDMiddleware()(
+		middleware.RequestLoggingMiddleware(logger)(mux),
+	)
+
+	slog.Info("listening on", "address", cfg.ListenAddr)
+	return http.ListenAndServe(cfg.ListenAddr, finalHandler)
 }
 
 func runSeed(cfg config.Config, args []string) error {
+	logLevel := logging.ParseLevel(cfg.LogLevel)
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	slog.New(logHandler)
+
 	flags := flag.NewFlagSet("seed", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 
@@ -112,6 +126,6 @@ func runSeed(cfg config.Config, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(os.Stdout, rawKey)
+	slog.Info("seed completed", "user", *userName, "key", rawKey)
 	return nil
 }
