@@ -18,7 +18,7 @@ func testLogger() *slog.Logger {
 func newProjectTestService(t *testing.T) (*ProjectService, *store.Store) {
 	t.Helper()
 
-	s, err := store.NewStore(":memory:")
+	s, err := store.NewStore(":memory:", testLogger())
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
 	}

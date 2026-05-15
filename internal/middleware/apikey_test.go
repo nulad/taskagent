@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +15,7 @@ import (
 func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
 
-	s, err := store.NewStore(":memory:")
+	s, err := store.NewStore(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
 	}

@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nulad/taskagent/internal/logging"
 	"github.com/nulad/taskagent/internal/model"
 )
 
@@ -35,6 +37,7 @@ func (s *Store) CreateTask(ctx context.Context, task *model.Task) error {
 	}
 	ok, err := s.statusExists(ctx, task.Status.String())
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to check status existence", err, slog.String("status", task.Status.String()))
 		return err
 	}
 	if !ok {
@@ -43,6 +46,7 @@ func (s *Store) CreateTask(ctx context.Context, task *model.Task) error {
 
 	tagsJSON, err := json.Marshal(task.Tags)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to marshal task tags", err, slog.String("task_id", task.ID))
 		return err
 	}
 
@@ -66,6 +70,7 @@ func (s *Store) CreateTask(ctx context.Context, task *model.Task) error {
 		task.UpdatedAt,
 	)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to create task", err, slog.String("task_id", task.ID), slog.String("project_id", task.ProjectID))
 		return err
 	}
 	return nil
@@ -106,11 +111,14 @@ func (s *Store) GetTask(ctx context.Context, id string) (model.Task, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logging.LogWithError(ctx, s.logger, "task not found", err, slog.String("task_id", id))
 			return model.Task{}, ErrNotFound
 		}
+		logging.LogWithError(ctx, s.logger, "failed to get task", err, slog.String("task_id", id))
 		return model.Task{}, err
 	}
 	if err := json.Unmarshal([]byte(tagsJSON), &task.Tags); err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to unmarshal task tags", err, slog.String("task_id", id))
 		return model.Task{}, err
 	}
 
@@ -165,6 +173,7 @@ func (s *Store) ListTasks(ctx context.Context, filter model.TaskFilter) ([]model
 
 	rows, err := s.DB.QueryContext(ctx, query, args...)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to list tasks", err, slog.Any("filter", filter))
 		return nil, err
 	}
 	defer rows.Close()
@@ -184,15 +193,18 @@ func (s *Store) ListTasks(ctx context.Context, filter model.TaskFilter) ([]model
 			&task.UpdatedAt,
 		)
 		if err != nil {
+			logging.LogWithError(ctx, s.logger, "failed to scan task", err)
 			return nil, err
 		}
 
 		if err := json.Unmarshal([]byte(tagsJSON), &task.Tags); err != nil {
+			logging.LogWithError(ctx, s.logger, "failed to unmarshal task tags", err)
 			return nil, err
 		}
 		tasks = append(tasks, task)
 	}
 	if err := rows.Err(); err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to iterate tasks", err)
 		return nil, err
 	}
 
@@ -206,6 +218,7 @@ func (s *Store) UpdateTask(ctx context.Context, task *model.Task) error {
 
 	ok, err := s.statusExists(ctx, task.Status.String())
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to check status existence", err, slog.String("status", task.Status.String()))
 		return err
 	}
 	if !ok {
@@ -215,6 +228,7 @@ func (s *Store) UpdateTask(ctx context.Context, task *model.Task) error {
 	currTimestamp := time.Now().UTC().Format(time.RFC3339)
 	tagsJSON, err := json.Marshal(task.Tags)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to marshal task tags", err, slog.String("task_id", task.ID))
 		return err
 	}
 
@@ -242,14 +256,17 @@ func (s *Store) UpdateTask(ctx context.Context, task *model.Task) error {
 		task.ID,
 	)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to update task", err, slog.String("task_id", task.ID))
 		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get rows affected", err)
 		return err
 	}
 	if rowsAffected == 0 {
+		logging.LogWithError(ctx, s.logger, "task not found", ErrNotFound, slog.String("task_id", task.ID))
 		return ErrNotFound
 	}
 
@@ -268,14 +285,17 @@ func (s *Store) DeleteTask(ctx context.Context, id string) error {
 
 	result, err := s.DB.ExecContext(ctx, query, id)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to delete task", err, slog.String("task_id", id))
 		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get rows affected", err)
 		return err
 	}
 	if rowsAffected == 0 {
+		logging.LogWithError(ctx, s.logger, "task not found", ErrNotFound, slog.String("task_id", id))
 		return ErrNotFound
 	}
 
@@ -313,14 +333,17 @@ func (s *Store) UpdateTaskStatus(ctx context.Context, id string, status model.Ta
 		id,
 	)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to update task status", err, slog.String("task_id", id), slog.String("status", status.String()))
 		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get rows affected", err)
 		return err
 	}
 	if rowsAffected == 0 {
+		logging.LogWithError(ctx, s.logger, "task not found", ErrNotFound, slog.String("task_id", id))
 		return ErrNotFound
 	}
 

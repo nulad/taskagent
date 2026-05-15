@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/nulad/taskagent/internal/logging"
 	"github.com/nulad/taskagent/internal/model"
 )
 
@@ -23,11 +25,13 @@ func (s *Store) CreateUser(ctx context.Context, name string, isAdmin bool) (mode
 
 	res, err := s.DB.ExecContext(ctx, query, name, isAdmin, currTimestamp, currTimestamp)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to create user", err, slog.String("name", name))
 		return model.User{}, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get last insert ID", err)
 		return model.User{}, err
 	}
 
@@ -64,8 +68,10 @@ func (s *Store) GetUserByName(ctx context.Context, name string) (model.User, err
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logging.LogWithError(ctx, s.logger, "user not found", err, slog.String("name", name))
 			return model.User{}, ErrNotFound
 		}
+		logging.LogWithError(ctx, s.logger, "failed to get user by name", err, slog.String("name", name))
 		return model.User{}, err
 	}
 

@@ -7,19 +7,23 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/nulad/taskagent/internal/logging"
 	"github.com/nulad/taskagent/internal/model"
 )
 
 func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (int64, string, error) {
 	if userID <= 0 {
+		logging.LogWithError(ctx, s.logger, "failed to create API key", ErrInvalidInput, slog.Int64("user_id", userID))
 		return 0, "", ErrInvalidInput
 	}
 
 	rawKey, err := generateRawKey()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to generate raw key", err)
 		return 0, "", err
 	}
 
@@ -32,11 +36,13 @@ func (s *Store) CreateApiKey(ctx context.Context, label string, userID int64) (i
 	`
 	result, err := s.DB.ExecContext(ctx, query, userID, hashedKey, label, currTimestamp)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to insert API key", err)
 		return 0, "", err
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get last insert ID", err)
 		return 0, "", err
 	}
 
@@ -59,8 +65,10 @@ func (s *Store) ValidateKey(ctx context.Context, rawKey string) (model.ApiKey, e
 	err := s.DB.QueryRowContext(ctx, query, hashed).Scan(&apiKey.ID, &apiKey.Label, &apiKey.UserID, &apiKey.UserName, &apiKey.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logging.LogWithError(ctx, s.logger, "API key not found", err)
 			return model.ApiKey{}, ErrNotFound
 		}
+		logging.LogWithError(ctx, s.logger, "failed to query API key", err)
 		return model.ApiKey{}, err
 	}
 	return apiKey, nil
@@ -76,6 +84,7 @@ func (s *Store) ListApiKeys(ctx context.Context) ([]model.ApiKey, error) {
 	var apiKeys []model.ApiKey
 	rows, err := s.DB.QueryContext(ctx, query)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to list API keys", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -84,11 +93,13 @@ func (s *Store) ListApiKeys(ctx context.Context) ([]model.ApiKey, error) {
 		var apiKey model.ApiKey
 		err := rows.Scan(&apiKey.ID, &apiKey.Label, &apiKey.UserID, &apiKey.UserName, &apiKey.CreatedAt)
 		if err != nil {
+			logging.LogWithError(ctx, s.logger, "failed to scan API key", err)
 			return nil, err
 		}
 		apiKeys = append(apiKeys, apiKey)
 	}
 	if err := rows.Err(); err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to iterate API keys", err)
 		return nil, err
 	}
 
@@ -106,13 +117,16 @@ func (s *Store) DeleteApiKey(ctx context.Context, id int64) error {
 	`
 	result, err := s.DB.ExecContext(ctx, query, id)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to delete API key", err)
 		return err
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get rows affected", err)
 		return err
 	}
 	if rowsAffected == 0 {
+		logging.LogWithError(ctx, s.logger, "failed to delete API key", ErrNotFound, slog.Int64("api_key_id", id))
 		return ErrNotFound
 	}
 	return nil

@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/model"
@@ -12,7 +14,7 @@ import (
 func newTestService(t *testing.T) (*TaskService, *store.Store) {
 	t.Helper()
 
-	s, err := store.NewStore(":memory:")
+	s, err := store.NewStore(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
 	}

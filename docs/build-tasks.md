@@ -366,7 +366,7 @@ Add structured JSON logging using Go's `log/slog` package (stdlib, available sin
 **Definition of Done — Task:**
 - A `slog.Logger` is created in `main()` with `slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: configuredLevel})`
 - Request logging middleware logs: method, path, status code, duration_ms, request_id
-- Request ID is generated as 8 hex characters, added to context and `X-Request-ID` response header
+- Request ID is generated as 32 hex characters, added to context and `X-Request-ID` response header
 - All store and service errors include the request ID in log output via context
 - Log level is configurable via `TASKAGENT_LOG_LEVEL` env var
 - The logger is passed as a dependency (not a global) — handlers/services receive it via constructors

@@ -39,7 +39,7 @@ func runServer(cfg config.Config) error {
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
 	logger := slog.New(logHandler)
 
-	appStore, err := store.NewStore(cfg.DatabasePath)
+	appStore, err := store.NewStore(cfg.DatabasePath, logger)
 	if err != nil {
 		return err
 	}
@@ -71,14 +71,14 @@ func runServer(cfg config.Config) error {
 		middleware.RequestLoggingMiddleware(logger)(mux),
 	)
 
-	slog.Info("listening on", "address", cfg.ListenAddr)
+	logger.Info("listening on", "address", cfg.ListenAddr)
 	return http.ListenAndServe(cfg.ListenAddr, finalHandler)
 }
 
 func runSeed(cfg config.Config, args []string) error {
 	logLevel := logging.ParseLevel(cfg.LogLevel)
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
-	slog.New(logHandler)
+	logger := slog.New(logHandler)
 
 	flags := flag.NewFlagSet("seed", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
@@ -93,7 +93,7 @@ func runSeed(cfg config.Config, args []string) error {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
 
-	appStore, err := store.NewStore(cfg.DatabasePath)
+	appStore, err := store.NewStore(cfg.DatabasePath, logger)
 	if err != nil {
 		return err
 	}
@@ -126,6 +126,6 @@ func runSeed(cfg config.Config, args []string) error {
 		return err
 	}
 
-	slog.Info("seed completed", "user", *userName, "key", rawKey)
+	logger.Info("seed completed", "user", *userName, "key", rawKey)
 	return nil
 }

@@ -4,13 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	_ "modernc.org/sqlite"
 )
 
 type Store struct {
-	DB *sql.DB
+	DB     *sql.DB
+	logger *slog.Logger
 }
 
 var (
@@ -19,7 +21,7 @@ var (
 	ErrPermissionDenied = errors.New("permission denied")
 )
 
-func NewStore(dbPath string) (*Store, error) {
+func NewStore(dbPath string, logger *slog.Logger) (*Store, error) {
 	dsn := dbPath
 	sep := "?"
 	if strings.Contains(dsn, "?") {
@@ -32,7 +34,7 @@ func NewStore(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	s := &Store{DB: db}
+	s := &Store{DB: db, logger: logger}
 
 	if err := s.runMigrations(); err != nil {
 		_ = db.Close()

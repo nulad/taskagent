@@ -1,9 +1,13 @@
 package store
 
-import "testing"
+import (
+	"io"
+	"log/slog"
+	"testing"
+)
 
 func TestNewStore_AppliesMigrations(t *testing.T) {
-	s, err := NewStore(":memory:")
+	s, err := NewStore(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
 	}
@@ -48,7 +52,7 @@ func TestNewStore_AppliesMigrations(t *testing.T) {
 }
 
 func TestRunMigrations_Idempotent(t *testing.T) {
-	s, err := NewStore(":memory:")
+	s, err := NewStore(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
 	}

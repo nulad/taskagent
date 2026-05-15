@@ -36,7 +36,7 @@ func testLogger() *slog.Logger {
 func newHandlerTestStore(t *testing.T) *store.Store {
 	t.Helper()
 
-	s, err := store.NewStore(":memory:")
+	s, err := store.NewStore(":memory:", testLogger())
 	if err != nil {
 		t.Fatalf("store.NewStore() error = %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/nulad/taskagent/internal/logging"
 	"github.com/nulad/taskagent/internal/model"
 	"github.com/nulad/taskagent/internal/store"
 )
@@ -50,10 +51,12 @@ func isValidStatusTransition(current, nextStatus model.TaskStatus) bool {
 func (s *TaskService) MoveTask(ctx context.Context, id string, newStatus model.TaskStatus) error {
 	task, err := s.store.GetTask(ctx, id)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get task for move", err, slog.String("task_id", id))
 		return err
 	}
 	currentStatus := task.Status
 	if !isValidStatusTransition(currentStatus, newStatus) {
+		logging.LogWithError(ctx, s.logger, "failed to move task", &InvalidTransitionError{From: currentStatus, To: newStatus}, slog.String("task_id", id))
 		return &InvalidTransitionError{From: currentStatus, To: newStatus}
 	}
 	return s.store.UpdateTaskStatus(ctx, id, newStatus)
@@ -62,23 +65,49 @@ func (s *TaskService) MoveTask(ctx context.Context, id string, newStatus model.T
 func (s *TaskService) CreateTask(ctx context.Context, task *model.Task) error {
 	_, err := s.store.GetProject(ctx, task.ProjectID)
 	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get project for task", err, slog.String("project_id", task.ProjectID))
 		return err
 	}
 
-	return s.store.CreateTask(ctx, task)
+	err = s.store.CreateTask(ctx, task)
+	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to create task", err, slog.String("project_id", task.ProjectID))
+		return err
+	}
+	return nil
 }
 func (s *TaskService) GetTask(ctx context.Context, id string) (model.Task, error) {
-	return s.store.GetTask(ctx, id)
+	task, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to get task", err, slog.String("task_id", id))
+		return model.Task{}, err
+	}
+	return task, nil
 }
 
 func (s *TaskService) ListTasks(ctx context.Context, filter model.TaskFilter) ([]model.Task, error) {
-	return s.store.ListTasks(ctx, filter)
+	tasks, err := s.store.ListTasks(ctx, filter)
+	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to list tasks", err, slog.Any("filter", filter))
+		return nil, err
+	}
+	return tasks, nil
 }
 
 func (s *TaskService) UpdateTask(ctx context.Context, task *model.Task) error {
-	return s.store.UpdateTask(ctx, task)
+	err := s.store.UpdateTask(ctx, task)
+	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to update task", err, slog.String("task_id", task.ID))
+		return err
+	}
+	return nil
 }
 
 func (s *TaskService) DeleteTask(ctx context.Context, id string) error {
-	return s.store.DeleteTask(ctx, id)
+	err := s.store.DeleteTask(ctx, id)
+	if err != nil {
+		logging.LogWithError(ctx, s.logger, "failed to delete task", err, slog.String("task_id", id))
+		return err
+	}
+	return nil
 }

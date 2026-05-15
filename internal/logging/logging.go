@@ -19,6 +19,16 @@ func RequestIDFromContext(ctx context.Context) (string, bool) {
 	return id, ok
 }
 
+// LogWithError adds request_id to log attributes if present in context
+func LogWithError(ctx context.Context, logger *slog.Logger, msg string, err error, attrs ...slog.Attr) {
+	if reqID, ok := RequestIDFromContext(ctx); ok {
+		attrs = append(attrs, slog.String("request_id", reqID))
+	}
+	attrs = append(attrs, slog.Any("error", err))
+	logger.LogAttrs(ctx, slog.LevelError, msg, attrs...)
+}
+
+// ParseLevel parses log level string
 func ParseLevel(s string) slog.Level {
 	switch s {
 	case "debug":

@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/model"
@@ -11,7 +13,7 @@ import (
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 
-	s, err := NewStore(":memory:")
+	s, err := NewStore(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewStore() error = %v", err)
 	}
