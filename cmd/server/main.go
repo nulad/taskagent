@@ -9,6 +9,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/nulad/taskagent/internal/config"
 	"github.com/nulad/taskagent/internal/handler"
@@ -43,7 +46,6 @@ func runServer(cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	defer appStore.Close()
 
 	projectService := service.NewProjectService(appStore, logger)
 	taskService := service.NewTaskService(appStore, logger)
@@ -71,8 +73,74 @@ func runServer(cfg config.Config) error {
 		middleware.RequestLoggingMiddleware(logger)(mux),
 	)
 
+	server := &http.Server{
+		Addr:    cfg.ListenAddr,
+		Handler: finalHandler,
+	}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+			return
+		}
+		serverErr <- nil
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
+
 	logger.Info("listening on", "address", cfg.ListenAddr)
-	return http.ListenAndServe(cfg.ListenAddr, finalHandler)
+
+	select {
+	case err := <-serverErr:
+		if closeErr := appStore.Close(); closeErr != nil {
+			logger.Error("database close failed", "error", closeErr)
+			if err == nil {
+				return closeErr
+			}
+		}
+		return err
+	case sig := <-sigChan:
+		logger.Info("shutting down...", "signal", sig.String())
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			logger.Error("shutdown timed out", "error", err)
+			if closeErr := server.Close(); closeErr != nil {
+				logger.Error("server close failed", "error", closeErr)
+			}
+			if closeErr := appStore.Close(); closeErr != nil {
+				logger.Error("database close failed", "error", closeErr)
+			}
+			return err
+		}
+
+		if closeErr := appStore.Close(); closeErr != nil {
+			logger.Error("database close failed", "error", closeErr)
+		}
+		return fmt.Errorf("shutdown server: %w", err)
+	}
+
+	if err := <-serverErr; err != nil {
+		if closeErr := appStore.Close(); closeErr != nil {
+			logger.Error("database close failed", "error", closeErr)
+		}
+		return err
+	}
+
+	if err := appStore.Close(); err != nil {
+		logger.Error("database close failed", "error", err)
+		return err
+	}
+
+	logger.Info("shutdown complete")
+	return nil
 }
 
 func runSeed(cfg config.Config, args []string) error {
