@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/middleware"
@@ -91,29 +93,99 @@ func newE2EServer(t *testing.T) *e2eHarness {
 	}
 }
 
-func TestE2ESmoke(t *testing.T) {
-	h := newE2EServer(t)
+func (h *e2eHarness) newJSONRequest(t *testing.T, method, path string, body interface{}) *http.Request {
+	t.Helper()
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("failed to marshal request body: %v", err)
+		}
+		bodyReader = bytes.NewReader(jsonBytes)
+	}
 
-	req, err := http.NewRequest("GET", h.server.URL+"/projects", nil)
+	url := h.server.URL + path
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
-	req.Header.Set("X-API-Key", h.apiKey)
 
+	req.Header.Set("X-API-Key", h.apiKey)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	return req
+}
+
+func (h *e2eHarness) doJSONRequest(t *testing.T, method, path string, body interface{}, expectedStatus int, dest interface{}) {
+	t.Helper()
+	req := h.newJSONRequest(t, method, path, body)
 	resp, err := h.client.Do(req)
 	if err != nil {
 		t.Fatalf("failed to do request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("expected status %d, got %d", expectedStatus, resp.StatusCode)
 	}
 
-	var projects []interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&projects); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
+	if dest != nil {
+		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
 	}
+}
+
+func (h *e2eHarness) doNoContentRequest(t *testing.T, method, path string, body interface{}, expectedStatus int) {
+	t.Helper()
+	req := h.newJSONRequest(t, method, path, body)
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("expected status %d, got %d", expectedStatus, resp.StatusCode)
+	}
+}
+
+func (h *e2eHarness) assertJSONError(t *testing.T, method, path string, body interface{}, expectedStatus int, expectedErrorMessage string) {
+	t.Helper()
+	req := h.newJSONRequest(t, method, path, body)
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("expected status %d, got %d", expectedStatus, resp.StatusCode)
+	}
+
+	var errResp struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+
+	if errResp.Error == "" {
+		t.Fatalf("expected error message in response, but got none")
+	}
+
+	if expectedErrorMessage != "" && !strings.Contains(errResp.Error, expectedErrorMessage) {
+		t.Fatalf("expected error message to contain %q, got %q", expectedErrorMessage, errResp.Error)
+	}
+}
+
+func TestE2ESmoke(t *testing.T) {
+	h := newE2EServer(t)
+
+	var projects []interface{}
+	h.doJSONRequest(t, "GET", "/projects", nil, http.StatusOK, &projects)
 
 	// Verify it's an array (even if empty)
 	if projects == nil {
