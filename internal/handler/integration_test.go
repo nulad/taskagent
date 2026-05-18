@@ -322,3 +322,48 @@ func TestTaskLifecycleE2E(t *testing.T) {
 		t.Errorf("expected final status %q, got %q", model.StatusDone, finalTask.Status)
 	}
 }
+
+func TestTaskDeleteWorkflowCleanupE2E(t *testing.T) {
+	h := newE2EServer(t)
+
+	// 1. Create a project
+	newProject := model.Project{
+		Name:        "Delete Workflow Project",
+		Description: "Project to test task deletion before project deletion",
+	}
+	var createdProject model.Project
+	h.doJSONRequest(t, "POST", "/projects", newProject, http.StatusCreated, &createdProject)
+
+	// 2. Create three tasks
+	taskTitles := []string{"Task 1", "Task 2", "Task 3"}
+	tasks := make([]model.Task, len(taskTitles))
+
+	for i, title := range taskTitles {
+		taskReq := model.Task{
+			ProjectID: createdProject.ID,
+			Title:     title,
+		}
+		h.doJSONRequest(t, "POST", "/tasks", taskReq, http.StatusCreated, &tasks[i])
+
+		if tasks[i].ID == "" {
+			t.Error("expected non-empty task ID")
+		}
+		if tasks[i].ProjectID != createdProject.ID {
+			t.Errorf("expected project ID %q, got %q", createdProject.ID, tasks[i].ProjectID)
+		}
+	}
+
+	// 3. Delete each task with DELETE /tasks/{id} and assert 204
+	for _, task := range tasks {
+		h.doNoContentRequest(t, "DELETE", "/tasks/"+task.ID, nil, http.StatusNoContent)
+	}
+
+	// 4. Fetch one deleted task and assert 404 with a JSON error body
+	h.assertJSONError(t, "GET", "/tasks/"+tasks[0].ID, nil, http.StatusNotFound, "not found")
+
+	// 5. Delete the project with DELETE /projects/{id} and assert 204
+	h.doNoContentRequest(t, "DELETE", "/projects/"+createdProject.ID, nil, http.StatusNoContent)
+
+	// 6. Fetch the deleted project and assert 404 with a JSON error body
+	h.assertJSONError(t, "GET", "/projects/"+createdProject.ID, nil, http.StatusNotFound, "not found")
+}
