@@ -254,6 +254,104 @@ func TestProjectLifecycleE2E(t *testing.T) {
 	h.assertJSONError(t, "GET", "/projects/"+createdProject.ID, nil, http.StatusNotFound, "not found")
 }
 
+func TestTaskListFilteringAndEmptyArrays(t *testing.T) {
+	h := newE2EServer(t)
+
+	// 1. Create a project
+	newProject := model.Project{
+		Name:        "Filtering Test Project",
+		Description: "Project for testing list filtering and empty arrays",
+	}
+	var createdProject model.Project
+	h.doJSONRequest(t, "POST", "/projects", newProject, http.StatusCreated, &createdProject)
+
+	// 2. Create three tasks for this project
+	taskTitles := []string{"Task A", "Task B", "Task C"}
+	tasks := make([]model.Task, len(taskTitles))
+
+	for i, title := range taskTitles {
+		taskReq := model.Task{
+			ProjectID: createdProject.ID,
+			Title:     title,
+		}
+		h.doJSONRequest(t, "POST", "/tasks", taskReq, http.StatusCreated, &tasks[i])
+	}
+
+	// 3. Move one task to 'done' and leave the others in 'backlog'
+	taskToComplete := tasks[0]
+
+	// Move: backlog -> todo -> in-progress -> review -> done
+	statuses := []model.TaskStatus{
+		model.StatusTodo,
+		model.StatusInProgress,
+		model.StatusReview,
+		model.StatusDone,
+	}
+	for _, nextStatus := range statuses {
+		moveReq := map[string]model.TaskStatus{"status": nextStatus}
+		var updatedTask model.Task
+		h.doJSONRequest(t, "PATCH", "/tasks/"+taskToComplete.ID+"/move", moveReq, http.StatusOK, &updatedTask)
+		if updatedTask.Status != nextStatus {
+			t.Errorf("expected status %q, got %q", nextStatus, updatedTask.Status)
+		}
+	}
+
+	// Verify the moved task is done
+	var finalTask model.Task
+	h.doJSONRequest(t, "GET", "/tasks/"+taskToComplete.ID, nil, http.StatusOK, &finalTask)
+	if finalTask.Status != model.StatusDone {
+		t.Errorf("expected task %q to be %q, got %q", taskToComplete.ID, model.StatusDone, finalTask.Status)
+	}
+
+	// --- Step 3: GET /tasks?project_id={projectID} returns all three tasks ---
+	var allTasks []model.Task
+	h.doJSONRequest(t, "GET", "/tasks?project_id="+createdProject.ID, nil, http.StatusOK, &allTasks)
+
+	if allTasks == nil {
+		t.Error("expected non-nil slice for GET /tasks?project_id, got nil")
+	}
+	if len(allTasks) != 3 {
+		t.Errorf("expected 3 tasks for project %q, got %d", createdProject.ID, len(allTasks))
+	}
+
+	// --- Step 4: GET /tasks?project_id={projectID}&status=done returns only the done task ---
+	var doneTasks []model.Task
+	h.doJSONRequest(t, "GET", "/tasks?project_id="+createdProject.ID+"&status=done", nil, http.StatusOK, &doneTasks)
+
+	if doneTasks == nil {
+		t.Error("expected non-nil slice for GET /tasks?project_id&status=done, got nil")
+	}
+	if len(doneTasks) != 1 {
+		t.Errorf("expected 1 done task for project %q, got %d", createdProject.ID, len(doneTasks))
+	}
+	if len(doneTasks) > 0 && doneTasks[0].ID != taskToComplete.ID {
+		t.Errorf("expected done task ID %q, got %q", taskToComplete.ID, doneTasks[0].ID)
+	}
+
+	// --- Step 5: GET /tasks?project_id={projectID}&status=review returns non-nil empty slice ---
+	var reviewTasks []model.Task
+	h.doJSONRequest(t, "GET", "/tasks?project_id="+createdProject.ID+"&status=review", nil, http.StatusOK, &reviewTasks)
+
+	if reviewTasks == nil {
+		t.Error("expected non-nil empty slice for GET /tasks?project_id&status=review, got nil")
+	}
+	if len(reviewTasks) != 0 {
+		t.Errorf("expected 0 review tasks for project %q, got %d", createdProject.ID, len(reviewTasks))
+	}
+
+	// --- Step 6: GET /projects in a fresh harness returns non-nil empty slice ---
+	freshHarness := newE2EServer(t)
+	var emptyProjects []model.Project
+	freshHarness.doJSONRequest(t, "GET", "/projects", nil, http.StatusOK, &emptyProjects)
+
+	if emptyProjects == nil {
+		t.Error("expected non-nil empty slice for GET /projects on fresh harness, got nil")
+	}
+	if len(emptyProjects) != 0 {
+		t.Errorf("expected 0 projects on fresh harness, got %d", len(emptyProjects))
+	}
+}
+
 func TestTaskLifecycleE2E(t *testing.T) {
 	h := newE2EServer(t)
 
