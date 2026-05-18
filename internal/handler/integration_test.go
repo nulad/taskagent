@@ -119,6 +119,100 @@ func (h *e2eHarness) newJSONRequest(t *testing.T, method, path string, body inte
 	return req
 }
 
+// newUnauthenticatedRequest creates a request without an X-API-Key header.
+func (h *e2eHarness) newUnauthenticatedRequest(t *testing.T, method, path string, body interface{}) *http.Request {
+	t.Helper()
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("failed to marshal request body: %v", err)
+		}
+		bodyReader = bytes.NewReader(jsonBytes)
+	}
+
+	url := h.server.URL + path
+	req, err := http.NewRequest(method, url, bodyReader)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	// Deliberately no X-API-Key header set
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	return req
+}
+
+// newOverrideAPIKeyRequest creates a request with an overridden X-API-Key value.
+func (h *e2eHarness) newOverrideAPIKeyRequest(t *testing.T, method, path string, apiKey string, body interface{}) *http.Request {
+	t.Helper()
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("failed to marshal request body: %v", err)
+		}
+		bodyReader = bytes.NewReader(jsonBytes)
+	}
+
+	url := h.server.URL + path
+	req, err := http.NewRequest(method, url, bodyReader)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("X-API-Key", apiKey)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	return req
+}
+
+// doUnauthenticatedRequest executes an unauthenticated request and validates the status code.
+func (h *e2eHarness) doUnauthenticatedRequest(t *testing.T, method, path string, body interface{}, expectedStatus int, dest interface{}) {
+	t.Helper()
+	req := h.newUnauthenticatedRequest(t, method, path, body)
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to do unauthenticated request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("expected status %d, got %d", expectedStatus, resp.StatusCode)
+	}
+
+	if dest != nil {
+		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+	}
+}
+
+// doOverrideKeyRequest executes a request with an overridden API key and validates the status code.
+func (h *e2eHarness) doOverrideKeyRequest(t *testing.T, method, path string, apiKey string, body interface{}, expectedStatus int, dest interface{}) {
+	t.Helper()
+	req := h.newOverrideAPIKeyRequest(t, method, path, apiKey, body)
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to do request with overridden key: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("expected status %d, got %d", expectedStatus, resp.StatusCode)
+	}
+
+	if dest != nil {
+		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+	}
+}
+
 func (h *e2eHarness) doJSONRequest(t *testing.T, method, path string, body interface{}, expectedStatus int, dest interface{}) {
 	t.Helper()
 	req := h.newJSONRequest(t, method, path, body)
@@ -499,5 +593,53 @@ func TestTaskInvalidTransitionE2E(t *testing.T) {
 
 	if fetchedTask.Status != model.StatusBacklog {
 		t.Errorf("expected status to remain %q, got %q", model.StatusBacklog, fetchedTask.Status)
+	}
+}
+
+func TestAuthFailureE2E(t *testing.T) {
+	h := newE2EServer(t)
+
+	// --- Test 1: Missing API key returns 401 with JSON error body ---
+	var missingKeyErrResp struct {
+		Error string `json:"error"`
+	}
+	h.doUnauthenticatedRequest(t, "GET", "/projects", nil, http.StatusUnauthorized, &missingKeyErrResp)
+
+	if missingKeyErrResp.Error == "" {
+		t.Fatalf("expected non-empty error message for missing API key, got empty string")
+	}
+
+	// --- Test 2: Invalid API key returns 401 with JSON error body ---
+	var invalidKeyErrResp struct {
+		Error string `json:"error"`
+	}
+	h.doOverrideKeyRequest(t, "GET", "/projects", "invalid-key-12345", nil, http.StatusUnauthorized, &invalidKeyErrResp)
+
+	if invalidKeyErrResp.Error == "" {
+		t.Fatalf("expected non-empty error message for invalid API key, got empty string")
+	}
+
+	// --- Test 3: Verify auth is required for other protected routes too ---
+	var createProjectErrResp struct {
+		Error string `json:"error"`
+	}
+	h.doUnauthenticatedRequest(t, "POST", "/projects",
+		map[string]string{"name": "unauthorized project"},
+		http.StatusUnauthorized, &createProjectErrResp)
+
+	if createProjectErrResp.Error == "" {
+		t.Fatalf("expected non-empty error message for unauthenticated POST, got empty string")
+	}
+
+	var createTaskErrResp struct {
+		Error string `json:"error"`
+	}
+	h.doOverrideKeyRequest(t, "POST", "/tasks",
+		"wrong-key",
+		map[string]string{"title": "unauthorized task"},
+		http.StatusUnauthorized, &createTaskErrResp)
+
+	if createTaskErrResp.Error == "" {
+		t.Fatalf("expected non-empty error message for unauthenticated POST, got empty string")
 	}
 }
