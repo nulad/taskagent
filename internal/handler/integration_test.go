@@ -322,3 +322,39 @@ func TestTaskLifecycleE2E(t *testing.T) {
 		t.Errorf("expected final status %q, got %q", model.StatusDone, finalTask.Status)
 	}
 }
+
+func TestTaskInvalidTransitionE2E(t *testing.T) {
+	h := newE2EServer(t)
+
+	// 1. Create Project
+	newProject := model.Project{
+		Name:        "Invalid Transition Project",
+		Description: "Project to test invalid task status transitions",
+	}
+	var createdProject model.Project
+	h.doJSONRequest(t, "POST", "/projects", newProject, http.StatusCreated, &createdProject)
+
+	// 2. Create a task
+	taskReq := model.Task{
+		ProjectID: createdProject.ID,
+		Title:     "Task to move invalidly",
+	}
+	var createdTask model.Task
+	h.doJSONRequest(t, "POST", "/tasks", taskReq, http.StatusCreated, &createdTask)
+
+	// 3. Attempt to move the task directly from backlog to done
+	moveReq := map[string]model.TaskStatus{
+		"status": model.StatusDone,
+	}
+
+	// 4. Assert the response status is 422 Unprocessable Entity and contains an error message
+	h.assertJSONError(t, "PATCH", "/tasks/"+createdTask.ID+"/move", moveReq, http.StatusUnprocessableEntity, "")
+
+	// 5. Fetch the task and assert its status remains backlog
+	var fetchedTask model.Task
+	h.doJSONRequest(t, "GET", "/tasks/"+createdTask.ID, nil, http.StatusOK, &fetchedTask)
+
+	if fetchedTask.Status != model.StatusBacklog {
+		t.Errorf("expected status to remain %q, got %q", model.StatusBacklog, fetchedTask.Status)
+	}
+}
