@@ -253,3 +253,72 @@ func TestProjectLifecycleE2E(t *testing.T) {
 	// 5. Verify deletion
 	h.assertJSONError(t, "GET", "/projects/"+createdProject.ID, nil, http.StatusNotFound, "not found")
 }
+
+func TestTaskLifecycleE2E(t *testing.T) {
+	h := newE2EServer(t)
+
+	// 1. Create Project
+	newProject := model.Project{
+		Name:        "Task Workflow Project",
+		Description: "Project to test task status workflow",
+	}
+	var createdProject model.Project
+	h.doJSONRequest(t, "POST", "/projects", newProject, http.StatusCreated, &createdProject)
+
+	// 2. Create three tasks
+	taskTitles := []string{"Task 1", "Task 2", "Task 3"}
+	tasks := make([]model.Task, len(taskTitles))
+
+	for i, title := range taskTitles {
+		taskReq := model.Task{
+			ProjectID: createdProject.ID,
+			Title:     title,
+		}
+		h.doJSONRequest(t, "POST", "/tasks", taskReq, http.StatusCreated, &tasks[i])
+
+		// Assertions for each task creation
+		if tasks[i].ID == "" {
+			t.Error("expected non-empty task ID")
+		}
+		if tasks[i].ProjectID != createdProject.ID {
+			t.Errorf("expected project ID %q, got %q", createdProject.ID, tasks[i].ProjectID)
+		}
+		if tasks[i].Title != title {
+			t.Errorf("expected title %q, got %q", title, tasks[i].Title)
+		}
+		if tasks[i].Status != model.StatusBacklog {
+			t.Errorf("expected initial status %q, got %q", model.StatusBacklog, tasks[i].Status)
+		}
+	}
+
+	// 3. Move one task through the sequence
+	// Sequence: backlog -> todo -> in-progress -> review -> done
+	statuses := []model.TaskStatus{
+		model.StatusTodo,
+		model.StatusInProgress,
+		model.StatusReview,
+		model.StatusDone,
+	}
+
+	taskToMove := tasks[0]
+	for _, nextStatus := range statuses {
+		moveReq := map[string]model.TaskStatus{
+			"status": nextStatus,
+		}
+		var updatedTask model.Task
+		h.doJSONRequest(t, "PATCH", "/tasks/"+taskToMove.ID+"/move", moveReq, http.StatusOK, &updatedTask)
+
+		// Verify the response body reports the requested status
+		if updatedTask.Status != nextStatus {
+			t.Errorf("expected status %q, got %q", nextStatus, updatedTask.Status)
+		}
+	}
+
+	// 4. Fetch the moved task and assert its final status is 'done'
+	var finalTask model.Task
+	h.doJSONRequest(t, "GET", "/tasks/"+taskToMove.ID, nil, http.StatusOK, &finalTask)
+
+	if finalTask.Status != model.StatusDone {
+		t.Errorf("expected final status %q, got %q", model.StatusDone, finalTask.Status)
+	}
+}
