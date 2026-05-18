@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/nulad/taskagent/internal/middleware"
+	"github.com/nulad/taskagent/internal/model"
 	"github.com/nulad/taskagent/internal/service"
 	"github.com/nulad/taskagent/internal/store"
 )
@@ -191,4 +192,64 @@ func TestE2ESmoke(t *testing.T) {
 	if projects == nil {
 		t.Errorf("expected projects to be a slice, got nil")
 	}
+}
+
+func TestProjectLifecycleE2E(t *testing.T) {
+	h := newE2EServer(t)
+
+	// 1. Create Project
+	newProject := model.Project{
+		Name:        "Test Project",
+		Description: "Test description",
+	}
+	var createdProject model.Project
+	h.doJSONRequest(t, "POST", "/projects", newProject, http.StatusCreated, &createdProject)
+
+	if createdProject.ID == "" {
+		t.Error("expected non-empty project ID")
+	}
+	if createdProject.Name != newProject.Name {
+		t.Errorf("expected name %q, got %q", newProject.Name, createdProject.Name)
+	}
+	if createdProject.Description != newProject.Description {
+		t.Errorf("expected description %q, got %q", newProject.Description, createdProject.Description)
+	}
+	if createdProject.CreatedAt == "" {
+		t.Error("expected non-empty CreatedAt")
+	}
+	if createdProject.UpdatedAt == "" {
+		t.Error("expected non-empty UpdatedAt")
+	}
+
+	// 2. Get Project
+	var fetchedProject model.Project
+	h.doJSONRequest(t, "GET", "/projects/"+createdProject.ID, nil, http.StatusOK, &fetchedProject)
+
+	if fetchedProject.ID != createdProject.ID {
+		t.Errorf("expected ID %q, got %q", createdProject.ID, fetchedProject.ID)
+	}
+	if fetchedProject.Name != createdProject.Name {
+		t.Errorf("expected name %q, got %q", createdProject.Name, fetchedProject.Name)
+	}
+
+	// 3. List Projects
+	var projects []model.Project
+	h.doJSONRequest(t, "GET", "/projects", nil, http.StatusOK, &projects)
+
+	found := false
+	for _, p := range projects {
+		if p.ID == createdProject.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected to find project %q in list", createdProject.ID)
+	}
+
+	// 4. Delete Project
+	h.doNoContentRequest(t, "DELETE", "/projects/"+createdProject.ID, nil, http.StatusNoContent)
+
+	// 5. Verify deletion
+	h.assertJSONError(t, "GET", "/projects/"+createdProject.ID, nil, http.StatusNotFound, "not found")
 }
