@@ -1,0 +1,41 @@
+# Version control
+.git
+.gitignore
+
+# Local database files
+*.db
+taskagent.db
+
+# Data directory (mounted at runtime)
+data/
+
+# Build outputs and test artifacts
+*.test
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Logs
+*.log
+
+# Editor / IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Docker files (avoid recursive builds)
+Dockerfile
+.dockerignore
+
+# Vendor (use Go modules instead)
+vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# Env files
+.env
