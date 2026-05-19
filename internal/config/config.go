@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 const (
 	defaultListenAddr   = ":8080"
@@ -10,6 +13,7 @@ const (
 	envListen       = "TASKAGENT_LISTEN_ADDR"
 	envDatabasePath = "TASKAGENT_DB_PATH"
 	envLogLevel     = "TASKAGENT_LOG_LEVEL"
+	envCORSOrigins  = "TASKAGENT_CORS_ORIGINS"
 )
 
 type Config struct {	
@@ -19,6 +23,8 @@ type Config struct {
 	DatabasePath string
 	// LogLevel is the level of logging to use.
 	LogLevel string
+	// CORSOrigins is an allowlist of allowed CORS origins.
+	CORSOrigins []string
 }
 
 
@@ -37,5 +43,22 @@ func Load() Config {
 	if logLevel := os.Getenv(envLogLevel); logLevel != "" {
 		cfg.LogLevel = logLevel
 	}
+	cfg.CORSOrigins = loadCORSOrigins()
 	return cfg
+}
+
+func loadCORSOrigins() []string {
+	raw := os.Getenv(envCORSOrigins)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	var origins []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			origins = append(origins, p)
+		}
+	}
+	return origins
 }
