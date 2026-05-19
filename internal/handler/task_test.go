@@ -541,6 +541,50 @@ func TestTaskHandler(t *testing.T) {
 			},
 		},
 		{
+			name:   "move task missing status",
+			method: http.MethodPatch,
+			path: func(baseURL string, seed *taskHandlerSeed) string {
+				return baseURL + "/tasks/" + seed.taskID + "/move"
+			},
+			body:       map[string]string{},
+			setup: func(t *testing.T, s *store.Store, _ any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Proj")
+				taskID := seedTask(t, s, projectID, "MoveNoStatus")
+				return &taskHandlerSeed{projectID: projectID, taskID: taskID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				if errBody := decodeErrorResponse(t, body); errBody["error"] != "status is required" {
+					t.Fatalf("error body = %+v, want 'status is required'", errBody)
+				}
+			},
+		},
+		{
+			name:   "move task invalid status",
+			method: http.MethodPatch,
+			path: func(baseURL string, seed *taskHandlerSeed) string {
+				return baseURL + "/tasks/" + seed.taskID + "/move"
+			},
+			body: map[string]string{"status": "bogus-status"},
+			setup: func(t *testing.T, s *store.Store, _ any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Proj")
+				taskID := seedTask(t, s, projectID, "MoveBadStatus")
+				return &taskHandlerSeed{projectID: projectID, taskID: taskID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				if errBody := decodeErrorResponse(t, body); errBody["error"] != "invalid status" {
+					t.Fatalf("error body = %+v, want 'invalid status'", errBody)
+				}
+			},
+		},
+		{
 			name:   "delete task",
 			method: http.MethodDelete,
 			path: func(baseURL string, seed *taskHandlerSeed) string {
