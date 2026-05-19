@@ -34,4 +34,7 @@ go.work.sum
 # Database files
 *.db
 
+# Docker volume mount directory
+./data/
+
 vendor/
