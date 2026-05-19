@@ -9,14 +9,14 @@ const (
 	defaultListenAddr   = ":8080"
 	defaultDatabasePath = "taskagent.db"
 	defaultLogLevel     = "info"
-	
+
 	envListen       = "TASKAGENT_LISTEN_ADDR"
 	envDatabasePath = "TASKAGENT_DB_PATH"
 	envLogLevel     = "TASKAGENT_LOG_LEVEL"
 	envCORSOrigins  = "TASKAGENT_CORS_ORIGINS"
 )
 
-type Config struct {	
+type Config struct {
 	// ListenAddr is the address to listen on for HTTP requests.
 	ListenAddr string
 	// DatabasePath is the path to the database file.
@@ -26,7 +26,6 @@ type Config struct {
 	// CORSOrigins is an allowlist of allowed CORS origins.
 	CORSOrigins []string
 }
-
 
 func Load() Config {
 	cfg := Config{

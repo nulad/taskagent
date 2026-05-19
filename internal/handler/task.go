@@ -234,9 +234,9 @@ func (h *TaskHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 const (
-	maxTitleLen    = 500
-	maxDescLen     = 5000
-	maxTagsCount   = 20
+	maxTitleLen  = 500
+	maxDescLen   = 5000
+	maxTagsCount = 20
 )
 
 // validateTaskCreate checks required fields, length limits, tag count, and

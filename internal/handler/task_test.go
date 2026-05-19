@@ -546,7 +546,7 @@ func TestTaskHandler(t *testing.T) {
 			path: func(baseURL string, seed *taskHandlerSeed) string {
 				return baseURL + "/tasks/" + seed.taskID + "/move"
 			},
-			body:       map[string]string{},
+			body: map[string]string{},
 			setup: func(t *testing.T, s *store.Store, _ any) *taskHandlerSeed {
 				projectID := seedProject(t, s, "Proj")
 				taskID := seedTask(t, s, projectID, "MoveNoStatus")

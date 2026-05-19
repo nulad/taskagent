@@ -214,5 +214,3 @@ func TestCORSMiddleware_CORSHeadersOnDisallowedRequest(t *testing.T) {
 func jsonDecode(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
-
-
