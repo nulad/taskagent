@@ -599,6 +599,51 @@ func TestTaskInvalidTransitionE2E(t *testing.T) {
 	}
 }
 
+// assertJSONErrorContract asserts that a request returns the expected status code
+// and the response body is a JSON object with a non-empty "error" field.
+// It also verifies the Content-Type header is application/json.
+func (h *e2eHarness) assertJSONErrorContract(t *testing.T, method, path string, body interface{},
+	expectedStatus int, expectedErrorMessage string,
+) {
+	t.Helper()
+	req := h.newJSONRequest(t, method, path, body)
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status %d, got %d; body: %s", expectedStatus, resp.StatusCode, string(bodyBytes))
+	}
+
+	// Verify Content-Type is application/json
+	ct := resp.Header.Get("Content-Type")
+	if ct != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", ct)
+	}
+
+	// Verify the body is a valid JSON object with a non-empty "error" field
+	var jsonErr map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&jsonErr); err != nil {
+		t.Fatalf("expected valid JSON error response, decode error: %v", err)
+	}
+
+	errorVal, ok := jsonErr["error"]
+	if !ok {
+		t.Fatalf("expected JSON object to contain an \"error\" field")
+	}
+	errorStr, ok := errorVal.(string)
+	if !ok || errorStr == "" {
+		t.Fatalf("expected \"error\" field to be a non-empty string, got %v", errorVal)
+	}
+
+	if expectedErrorMessage != "" && !strings.Contains(errorStr, expectedErrorMessage) {
+		t.Fatalf("expected error message to contain %q, got %q", expectedErrorMessage, errorStr)
+	}
+}
+
 func TestAuthFailureE2E(t *testing.T) {
 	h := newE2EServer(t)
 
@@ -644,5 +689,222 @@ func TestAuthFailureE2E(t *testing.T) {
 
 	if createTaskErrResp.Error == "" {
 		t.Fatalf("expected non-empty error message for unauthenticated POST, got empty string")
+	}
+}
+
+// TestMalformedJSONErrorContract verifies that a protected route returns 400
+// with a JSON error body when the request body is not valid JSON.
+func TestMalformedJSONErrorContract(t *testing.T) {
+	h := newE2EServer(t)
+
+	// Send raw invalid JSON (no Content-Type set, so readJSON will fail)
+	req := httptest.NewRequest("POST", "/projects", strings.NewReader(`{not valid json}`))
+	req.Header.Set("X-API-Key", h.apiKey)
+
+	rec := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400, got %d; body: %s", resp.StatusCode, string(body))
+	}
+
+	// Verify Content-Type
+	ct := resp.Header.Get("Content-Type")
+	if ct != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %q", ct)
+	}
+
+	// Verify JSON error body with non-empty error field
+	var jsonErr map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&jsonErr); err != nil {
+		t.Fatalf("expected valid JSON error response, decode error: %v", err)
+	}
+
+	errorVal, ok := jsonErr["error"]
+	if !ok {
+		t.Fatal("expected JSON object to contain an \"error\" field")
+	}
+	errorStr, ok := errorVal.(string)
+	if !ok || errorStr == "" {
+		t.Fatalf("expected \"error\" field to be a non-empty string, got %v", errorVal)
+	}
+}
+
+// TestValidationErrorsOnProjectCreate verifies that creating a project with
+// missing required fields returns 400 with a JSON error body.
+func TestValidationErrorsOnProjectCreate(t *testing.T) {
+	h := newE2EServer(t)
+
+	// Create a project with an empty name — should fail validation
+	createReq := map[string]string{
+		"name":        "",
+		"description": "some description",
+	}
+	h.assertJSONErrorContract(t, "POST", "/projects", createReq,
+		http.StatusBadRequest, "name")
+
+	// Verify project was not created
+	var projects []model.Project
+	h.doJSONRequest(t, "GET", "/projects", nil, http.StatusOK, &projects)
+	if len(projects) != 0 {
+		t.Errorf("expected 0 projects, got %d", len(projects))
+	}
+}
+
+// TestConflictOnDeleteProjectWithTasks verifies that deleting a project
+// that still has tasks returns 409 with a JSON error body.
+func TestConflictOnDeleteProjectWithTasks(t *testing.T) {
+	h := newE2EServer(t)
+
+	// 1. Create a project
+	newProject := model.Project{
+		Name:        "Conflict Project",
+		Description: "Project that retains tasks for 409 testing",
+	}
+	var createdProject model.Project
+	h.doJSONRequest(t, "POST", "/projects", newProject, http.StatusCreated, &createdProject)
+
+	// 2. Create a task in that project
+	taskReq := model.Task{
+		ProjectID: createdProject.ID,
+		Title:     "Task that prevents project deletion",
+	}
+	var createdTask model.Task
+	h.doJSONRequest(t, "POST", "/tasks", taskReq, http.StatusCreated, &createdTask)
+
+	// 3. Attempt to delete the project — should return 409 Conflict
+	h.assertJSONErrorContract(t, "DELETE", "/projects/"+createdProject.ID, nil,
+		http.StatusConflict, "has 1 associated task(s)")
+
+	// 4. Verify the project still exists
+	var fetchedProject model.Project
+	h.doJSONRequest(t, "GET", "/projects/"+createdProject.ID, nil, http.StatusOK, &fetchedProject)
+	if fetchedProject.ID != createdProject.ID {
+		t.Errorf("expected project ID %q, got %q", createdProject.ID, fetchedProject.ID)
+	}
+}
+
+// TestCORSIntegration verifies CORS behavior across preflight and actual requests.
+func TestCORSIntegration(t *testing.T) {
+	h := newE2EServer(t)
+
+	// --- Test 1: Allowed preflight (OPTIONS) from allowed origin ---
+	preflightReq := httptest.NewRequest(http.MethodOptions, "/projects", nil)
+	preflightReq.Header.Set("Origin", "http://localhost")
+	preflightReq.Header.Set("Access-Control-Request-Method", "POST")
+	preflightReq.Header.Set("Access-Control-Request-Headers", "X-API-Key, Content-Type")
+
+	preflightRec := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(preflightRec, preflightReq)
+
+	preflightResp := preflightRec.Result()
+	defer preflightResp.Body.Close()
+
+	if preflightResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected preflight status 204, got %d", preflightResp.StatusCode)
+	}
+
+	if origin := preflightResp.Header.Get("Access-Control-Allow-Origin"); origin != "http://localhost" {
+		t.Fatalf("expected ACAO header 'http://localhost', got %q", origin)
+	}
+
+	if methods := preflightResp.Header.Get("Access-Control-Allow-Methods"); methods == "" {
+		t.Fatal("expected Access-Control-Allow-Methods header on preflight response")
+	}
+
+	if headers := preflightResp.Header.Get("Access-Control-Allow-Headers"); headers == "" {
+		t.Fatal("expected Access-Control-Allow-Headers header on preflight response")
+	}
+
+	// --- Test 2: Disallowed preflight from disallowed origin ---
+	disallowedPreflight := httptest.NewRequest(http.MethodOptions, "/projects", nil)
+	disallowedPreflight.Header.Set("Origin", "http://evil.com")
+
+	disallowedRec := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(disallowedRec, disallowedPreflight)
+
+	disallowedResult := disallowedRec.Result()
+	defer disallowedResult.Body.Close()
+
+	if disallowedResult.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected disallowed preflight status 403, got %d", disallowedResult.StatusCode)
+	}
+
+	// Verify error body
+	var errResp map[string]interface{}
+	if err := json.NewDecoder(disallowedResult.Body).Decode(&errResp); err != nil {
+		t.Fatalf("expected JSON error body, decode error: %v", err)
+	}
+	if errMsg, ok := errResp["error"]; !ok || errMsg != "origin not allowed" {
+		t.Fatalf("expected error 'origin not allowed', got %v", errMsg)
+	}
+
+	// --- Test 3: Disallowed preflight should NOT set ACAO header ---
+	if origin := disallowedResult.Header.Get("Access-Control-Allow-Origin"); origin != "" {
+		t.Fatalf("disallowed preflight should not set ACAO, got %q", origin)
+	}
+
+	// --- Test 4: Actual POST request from allowed origin receives CORS headers ---
+	actualReq := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"name":"CORS Test Project"}`))
+	actualReq.Header.Set("Origin", "http://localhost")
+	actualReq.Header.Set("Content-Type", "application/json")
+	actualReq.Header.Set("X-API-Key", h.apiKey)
+
+	actualRec := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(actualRec, actualReq)
+
+	actualResult := actualRec.Result()
+	defer actualResult.Body.Close()
+
+	if actualResult.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(actualResult.Body)
+		t.Fatalf("expected 201, got %d; body: %s", actualResult.StatusCode, string(body))
+	}
+
+	if origin := actualResult.Header.Get("Access-Control-Allow-Origin"); origin != "http://localhost" {
+		t.Fatalf("expected ACAO 'http://localhost' on actual response, got %q", origin)
+	}
+
+	if vary := actualResult.Header.Get("Vary"); vary != "Origin" {
+		t.Fatalf("expected Vary: Origin, got %q", vary)
+	}
+
+	// --- Test 5: Actual request from disallowed origin gets 403 ---
+	disallowedActual := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"name":"Evil Project"}`))
+	disallowedActual.Header.Set("Origin", "http://evil.com")
+	disallowedActual.Header.Set("Content-Type", "application/json")
+	disallowedActual.Header.Set("X-API-Key", h.apiKey)
+
+	disallowedActualRec := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(disallowedActualRec, disallowedActual)
+
+	disallowedActualResult := disallowedActualRec.Result()
+	defer disallowedActualResult.Body.Close()
+
+	if disallowedActualResult.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected disallowed actual request status 403, got %d", disallowedActualResult.StatusCode)
+	}
+
+	// --- Test 6: Request without Origin header passes through unchanged (no CORS overhead) ---
+	noOriginReq := httptest.NewRequest(http.MethodGet, "/projects", nil)
+	noOriginReq.Header.Set("X-API-Key", h.apiKey)
+
+	noOriginRec := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(noOriginRec, noOriginReq)
+
+	noOriginResult := noOriginRec.Result()
+	defer noOriginResult.Body.Close()
+
+	if noOriginResult.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for request without Origin, got %d", noOriginResult.StatusCode)
+	}
+
+	// Should NOT have ACAO header when no Origin was sent
+	if origin := noOriginResult.Header.Get("Access-Control-Allow-Origin"); origin != "" {
+		t.Fatalf("expected no ACAO when no Origin header, got %q", origin)
 	}
 }
