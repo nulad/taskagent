@@ -44,8 +44,15 @@ func (h *AuthHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Label == "" || req.UserName == "" {
-		writeError(w, http.StatusUnprocessableEntity, "label and user_name are required")
+	verrs := newValidationErrors()
+	if req.Label == "" {
+		verrs.add("label", "is required")
+	}
+	if req.UserName == "" {
+		verrs.add("user_name", "is required")
+	}
+	if verrs.hasErrors() {
+		writeValidationErrors(w, verrs)
 		return
 	}
 	user, err := h.store.GetUserByName(r.Context(), req.UserName)

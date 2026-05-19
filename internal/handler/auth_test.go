@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/middleware"
@@ -171,13 +172,47 @@ func TestAuthHandler(t *testing.T) {
 			},
 		},
 		{
-			name:   "create API key missing fields",
+			name:   "create API key missing user_name",
 			method: http.MethodPost,
 			path: func(baseURL string, _ *authHandlerSeed) string {
 				return baseURL + "/auth/keys"
 			},
 			body:       createApiKeyRequest{Label: "no user"},
-			wantStatus: http.StatusUnprocessableEntity,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "create API key missing label",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *authHandlerSeed) string {
+				return baseURL + "/auth/keys"
+			},
+			body:       createApiKeyRequest{UserName: "ghost"},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "create API key missing both fields",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *authHandlerSeed) string {
+				return baseURL + "/auth/keys"
+			},
+			body:       createApiKeyRequest{},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *authHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				var errResp map[string]string
+				if err := json.Unmarshal(body, &errResp); err != nil {
+					t.Fatalf("json.Unmarshal() error = %v", err)
+				}
+				msg, ok := errResp["error"]
+				if !ok {
+					t.Fatalf("missing error field in response: %s", string(body))
+				}
+				if !strings.Contains(msg, "label") || !strings.Contains(msg, "user_name") {
+					t.Fatalf("expected both field errors in message, got: %s", msg)
+				}
+			},
 		},
 		{
 			name:   "create API key unknown user",
