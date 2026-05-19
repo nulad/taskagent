@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/model"
@@ -127,13 +129,234 @@ func TestTaskHandler(t *testing.T) {
 				return baseURL + "/tasks"
 			},
 			body:       map[string]string{"title": "no project"},
-			wantStatus: http.StatusUnprocessableEntity,
+			wantStatus: http.StatusBadRequest,
 			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
-				if status != http.StatusUnprocessableEntity {
-					t.Fatalf("status = %d, want %d", status, http.StatusUnprocessableEntity)
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
 				}
 				if errBody := decodeErrorResponse(t, body); errBody["error"] == "" {
 					t.Fatalf("expected error body, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "create task title too long",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *taskHandlerSeed) string {
+				return baseURL + "/tasks"
+			},
+			body: func() any {
+				return map[string]string{
+					"title": strings.Repeat("x", 501),
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Read me")
+				body.(map[string]string)["project_id"] = projectID
+				return &taskHandlerSeed{projectID: projectID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "title") {
+					t.Fatalf("expected title error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "create task description too long",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *taskHandlerSeed) string {
+				return baseURL + "/tasks"
+			},
+			body: func() any {
+				return map[string]string{
+					"description": strings.Repeat("x", 5001),
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Read me")
+				body.(map[string]string)["project_id"] = projectID
+				body.(map[string]string)["title"] = "ok title"
+				return &taskHandlerSeed{projectID: projectID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "description") {
+					t.Fatalf("expected description error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "create task too many tags",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *taskHandlerSeed) string {
+				return baseURL + "/tasks"
+			},
+			body: func() any {
+				tags := make([]string, 21)
+				for i := 0; i < 21; i++ {
+					tags[i] = "tag" + strconv.Itoa(i)
+				}
+				return map[string]any{
+					"project_id": "", // set by setup
+					"title":      "ok",
+					"tags":       tags,
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Read me")
+				body.(map[string]any)["project_id"] = projectID
+				return &taskHandlerSeed{projectID: projectID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "tags") {
+					t.Fatalf("expected tags error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "create task invalid status",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *taskHandlerSeed) string {
+				return baseURL + "/tasks"
+			},
+			body: func() any {
+				return map[string]string{
+					"status": "bogus",
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Read me")
+				body.(map[string]string)["project_id"] = projectID
+				body.(map[string]string)["title"] = "ok"
+				return &taskHandlerSeed{projectID: projectID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "status") {
+					t.Fatalf("expected status error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update task title too long",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *taskHandlerSeed) string {
+				return baseURL + "/tasks/" + seed.taskID
+			},
+			body: func() any {
+				return map[string]string{
+					"title": strings.Repeat("x", 501),
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Proj")
+				taskID := seedTask(t, s, projectID, "Alpha")
+				return &taskHandlerSeed{projectID: projectID, taskID: taskID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "title") {
+					t.Fatalf("expected title error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update task description too long",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *taskHandlerSeed) string {
+				return baseURL + "/tasks/" + seed.taskID
+			},
+			body: func() any {
+				return map[string]string{
+					"description": strings.Repeat("x", 5001),
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Proj")
+				taskID := seedTask(t, s, projectID, "Alpha")
+				return &taskHandlerSeed{projectID: projectID, taskID: taskID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "description") {
+					t.Fatalf("expected description error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update task too many tags",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *taskHandlerSeed) string {
+				return baseURL + "/tasks/" + seed.taskID
+			},
+			body: func() any {
+				tags := make([]string, 21)
+				for i := 0; i < 21; i++ {
+					tags[i] = "tag" + strconv.Itoa(i)
+				}
+				return map[string]any{
+					"title": "ok",
+					"tags":  tags,
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Proj")
+				taskID := seedTask(t, s, projectID, "Alpha")
+				return &taskHandlerSeed{projectID: projectID, taskID: taskID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "tags") {
+					t.Fatalf("expected tags error, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update task invalid status",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *taskHandlerSeed) string {
+				return baseURL + "/tasks/" + seed.taskID
+			},
+			body: func() any {
+				return map[string]string{
+					"status": "bogus",
+				}
+			}(),
+			setup: func(t *testing.T, s *store.Store, body any) *taskHandlerSeed {
+				projectID := seedProject(t, s, "Proj")
+				taskID := seedTask(t, s, projectID, "Alpha")
+				return &taskHandlerSeed{projectID: projectID, taskID: taskID}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *taskHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d, body: %s", status, http.StatusBadRequest, string(body))
+				}
+				if errBody := decodeErrorResponse(t, body); !strings.Contains(errBody["error"], "status") {
+					t.Fatalf("expected status error, got %+v", errBody)
 				}
 			},
 		},
