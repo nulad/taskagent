@@ -155,6 +155,16 @@ func (h *TaskHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if moveStatus.Status == "" {
+		writeError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	if !model.ValidStatus(string(moveStatus.Status)) {
+		writeError(w, http.StatusBadRequest, "invalid status")
+		return
+	}
+
 	err = h.service.MoveTask(r.Context(), taskID, moveStatus.Status)
 	if err != nil {
 		var target *service.InvalidTransitionError
