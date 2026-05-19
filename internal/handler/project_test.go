@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/nulad/taskagent/internal/model"
@@ -186,6 +187,137 @@ func TestProjectHandler(t *testing.T) {
 				}
 				if got.ID != project.ID || got.Name != project.Name || got.Description != project.Description {
 					t.Fatalf("unexpected persisted project: %+v", got)
+				}
+			},
+		},
+		{
+			name:   "create project missing name",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *projectHandlerSeed) string {
+				return baseURL + "/projects"
+			},
+			body: map[string]string{
+				"description": "no name here",
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *projectHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				errBody := decodeErrorResponse(t, body)
+				if errBody["error"] == "" {
+					t.Fatalf("expected error body, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "create project name too long",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *projectHandlerSeed) string {
+				return baseURL + "/projects"
+			},
+			body: map[string]string{
+				"name": strings.Repeat("A", 101),
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *projectHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				errBody := decodeErrorResponse(t, body)
+				if errBody["error"] == "" {
+					t.Fatalf("expected error body, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "create project description too long",
+			method: http.MethodPost,
+			path: func(baseURL string, _ *projectHandlerSeed) string {
+				return baseURL + "/projects"
+			},
+			body: map[string]string{
+				"name":        "Alpha",
+				"description": strings.Repeat("x", 5001),
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *projectHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				errBody := decodeErrorResponse(t, body)
+				if errBody["error"] == "" {
+					t.Fatalf("expected error body, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update project missing name",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *projectHandlerSeed) string {
+				return baseURL + "/projects/" + seed.projectID
+			},
+			body: map[string]string{
+				"description": "no name on update",
+			},
+			setup: func(t *testing.T, s *store.Store) *projectHandlerSeed {
+				return &projectHandlerSeed{projectID: seedProject(t, s, "Alpha")}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *projectHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				errBody := decodeErrorResponse(t, body)
+				if errBody["error"] == "" {
+					t.Fatalf("expected error body, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update project name too long",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *projectHandlerSeed) string {
+				return baseURL + "/projects/" + seed.projectID
+			},
+			body: map[string]string{
+				"name": strings.Repeat("A", 101),
+			},
+			setup: func(t *testing.T, s *store.Store) *projectHandlerSeed {
+				return &projectHandlerSeed{projectID: seedProject(t, s, "Alpha")}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *projectHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				errBody := decodeErrorResponse(t, body)
+				if errBody["error"] == "" {
+					t.Fatalf("expected error body, got %+v", errBody)
+				}
+			},
+		},
+		{
+			name:   "update project description too long",
+			method: http.MethodPut,
+			path: func(baseURL string, seed *projectHandlerSeed) string {
+				return baseURL + "/projects/" + seed.projectID
+			},
+			body: map[string]string{
+				"name":        "Alpha Updated",
+				"description": strings.Repeat("x", 5001),
+			},
+			setup: func(t *testing.T, s *store.Store) *projectHandlerSeed {
+				return &projectHandlerSeed{projectID: seedProject(t, s, "Alpha")}
+			},
+			wantStatus: http.StatusBadRequest,
+			assert: func(t *testing.T, _ *store.Store, _ *projectHandlerSeed, status int, body []byte) {
+				if status != http.StatusBadRequest {
+					t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+				}
+				errBody := decodeErrorResponse(t, body)
+				if errBody["error"] == "" {
+					t.Fatalf("expected error body, got %+v", errBody)
 				}
 			},
 		},

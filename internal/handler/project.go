@@ -35,8 +35,20 @@ func (h *ProjectHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate project request fields
+	verrs := newValidationErrors()
+
 	if project.Name == "" {
-		writeError(w, http.StatusUnprocessableEntity, "project name is required")
+		verrs.add("name", "is required")
+	}
+	if len(project.Name) > 100 {
+		verrs.add("name", "must be at most 100 characters")
+	}
+	if len(project.Description) > 5000 {
+		verrs.add("description", "must be at most 5000 characters")
+	}
+	if verrs.hasErrors() {
+		writeValidationErrors(w, verrs)
 		return
 	}
 
@@ -100,6 +112,23 @@ func (h *ProjectHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	project.ID = projectID
+
+	// Validate project request fields
+	verrs := newValidationErrors()
+
+	if project.Name == "" {
+		verrs.add("name", "is required")
+	}
+	if len(project.Name) > 100 {
+		verrs.add("name", "must be at most 100 characters")
+	}
+	if len(project.Description) > 5000 {
+		verrs.add("description", "must be at most 5000 characters")
+	}
+	if verrs.hasErrors() {
+		writeValidationErrors(w, verrs)
+		return
+	}
 
 	err = h.service.UpdateProject(r.Context(), &project)
 	if err != nil {
