@@ -15,6 +15,54 @@ import (
 	"github.com/nulad/taskagent/internal/store"
 )
 
+func TestWriteMiddlewareError_JSONResponse(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeMiddlewareError(rec, http.StatusInternalServerError, "internal server error")
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
+	}
+	if rec.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %s", rec.Header().Get("Content-Type"))
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response body is not valid JSON: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if body["error"] == "" {
+		t.Fatal("expected non-empty 'error' field in JSON response")
+	}
+	if body["error"] != "internal server error" {
+		t.Fatalf("expected error message %q, got %q", "internal server error", body["error"])
+	}
+	if len(body) != 1 {
+		t.Fatalf("expected exactly one key 'error' in JSON response, got keys: %v", body)
+	}
+}
+
+func TestWriteMiddlewareError_MissingAPIKey(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeMiddlewareError(rec, http.StatusUnauthorized, "missing API key")
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+	if rec.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("expected Content-Type application/json, got %s", rec.Header().Get("Content-Type"))
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response body is not valid JSON: %v\nbody: %s", err, rec.Body.String())
+	}
+
+	if body["error"] != "missing API key" {
+		t.Fatalf("expected error message %q, got %q", "missing API key", body["error"])
+	}
+}
+
 func TestRequestIDMiddleware(t *testing.T) {
 	tests := []struct {
 		name          string
