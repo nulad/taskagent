@@ -69,8 +69,11 @@ func runServer(cfg config.Config) error {
 	protectedAPI := middleware.AuthMiddleware(appStore)(protectedMux)
 	mux.Handle("/", protectedAPI)
 
+	// Wrap the mux with CORS to apply it to all routes, including /health and protectedAPI
+	corsHandler := middleware.CORSMiddleware(cfg.CORSOrigins)(mux)
+
 	finalHandler := middleware.RequestIDMiddleware()(
-		middleware.RequestLoggingMiddleware(logger)(mux),
+		middleware.RequestLoggingMiddleware(logger)(corsHandler),
 	)
 
 	server := &http.Server{

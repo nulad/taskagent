@@ -78,8 +78,11 @@ func newE2EServer(t *testing.T) *e2eHarness {
 	protectedAPI := middleware.AuthMiddleware(appStore)(protectedMux)
 	mux.Handle("/", protectedAPI)
 
+	// Wrap the mux with CORS to match cmd/server/main.go
+	corsHandler := middleware.CORSMiddleware([]string{"http://localhost"})(mux)
+
 	finalHandler := middleware.RequestIDMiddleware()(
-		middleware.RequestLoggingMiddleware(logger)(mux),
+		middleware.RequestLoggingMiddleware(logger)(corsHandler),
 	)
 
 	server := httptest.NewServer(finalHandler)
