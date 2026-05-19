@@ -37,8 +37,9 @@ func (h *TaskHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if task.ProjectID == "" || task.Title == "" {
-		writeError(w, http.StatusUnprocessableEntity, "project_id and title are required")
+	verrs := validateTaskCreate(&task)
+	if verrs.hasErrors() {
+		writeValidationErrors(w, verrs)
 		return
 	}
 
@@ -101,6 +102,13 @@ func (h *TaskHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+
+	verrs := validateTaskUpdate(&task)
+	if verrs.hasErrors() {
+		writeValidationErrors(w, verrs)
+		return
+	}
+
 	task.ID = taskID
 
 	err = h.service.UpdateTask(r.Context(), &task)
@@ -213,6 +221,63 @@ func (h *TaskHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 
+}
+
+const (
+	maxTitleLen    = 500
+	maxDescLen     = 5000
+	maxTagsCount   = 20
+)
+
+// validateTaskCreate checks required fields, length limits, tag count, and
+// status validity for POST /tasks requests.
+// Returns a validationErrors collection so all field issues can be reported
+// in a single response.
+func validateTaskCreate(t *model.Task) *validationErrors {
+	verrs := newValidationErrors()
+
+	if t.ProjectID == "" {
+		verrs.add("project_id", "is required")
+	}
+	if t.Title == "" {
+		verrs.add("title", "is required")
+	}
+	if len(t.Title) > maxTitleLen {
+		verrs.add("title", "must be at most 500 characters")
+	}
+	if len(t.Description) > maxDescLen {
+		verrs.add("description", "must be at most 5000 characters")
+	}
+	if len(t.Tags) > maxTagsCount {
+		verrs.add("tags", "must be at most 20 items")
+	}
+	if t.Status != "" && !model.ValidStatus(string(t.Status)) {
+		verrs.add("status", "must be a valid task status")
+	}
+
+	return verrs
+}
+
+// validateTaskUpdate applies the same length, tag, and status rules for PUT
+// /tasks/{id} requests. Unlike create, no field is mandatory for update
+// since callers may only wish to mutate a subset of fields.
+func validateTaskUpdate(t *model.Task) *validationErrors {
+	verrs := newValidationErrors()
+
+	if len(t.Title) > maxTitleLen {
+		verrs.add("title", "must be at most 500 characters")
+	}
+	if len(t.Description) > maxDescLen {
+		verrs.add("description", "must be at most 5000 characters")
+	}
+	if len(t.Tags) > maxTagsCount {
+		verrs.add("tags", "must be at most 20 items")
+	}
+	if t.Status != "" && !model.ValidStatus(string(t.Status)) {
+		verrs.add("status", "must be a valid task status")
+	}
+
+	return verrs
 }
 
 func (h *TaskHandler) handleList(w http.ResponseWriter, r *http.Request) {
