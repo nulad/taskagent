@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sort"
+	"strings"
 )
 
 var (
@@ -50,4 +52,51 @@ func writeError(w http.ResponseWriter, status int, message string) {
 
 func pathParam(r *http.Request, key string) string {
 	return r.PathValue(key)
+}
+
+// validationErrors collects field-specific validation errors.
+// The zero value is ready to use; the underlying map is created on first add.
+type validationErrors struct {
+	errs map[string]string
+}
+
+// newValidationErrors creates a new validationErrors instance ready for use.
+func newValidationErrors() *validationErrors {
+	return &validationErrors{errs: make(map[string]string)}
+}
+
+// add registers a field-level error message.
+func (v *validationErrors) add(field, message string) {
+	v.errs[field] = message
+}
+
+// hasErrors reports whether any field errors have been collected.
+func (v *validationErrors) hasErrors() bool {
+	return len(v.errs) > 0
+}
+
+// Error returns a single stable message string describing all collected
+// field errors, sorted by field name for deterministic output.
+// Satisfies the error interface.
+func (v *validationErrors) Error() string {
+	if len(v.errs) == 0 {
+		return "validation failed"
+	}
+	fields := make([]string, 0, len(v.errs))
+	for field := range v.errs {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+
+	var parts []string
+	for _, field := range fields {
+		parts = append(parts, field+" "+v.errs[field])
+	}
+	return "validation failed: " + strings.Join(parts, "; ")
+}
+
+// writeValidationErrors writes a 400 Bad Request response containing the
+// human-readable validation message as a single JSON {"error":"..."} object.
+func writeValidationErrors(w http.ResponseWriter, verrs *validationErrors) {
+	writeError(w, http.StatusBadRequest, verrs.Error())
 }
