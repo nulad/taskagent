@@ -1,4 +1,4 @@
-.PHONY: build run test lint docker-build data-dir compose-up compose-down compose-logs compose-smoke
+.PHONY: build run test lint docker-build data-dir compose-up compose-down compose-logs compose-smoke compose-persistence
 
 build:
 	go build ./...
@@ -40,4 +40,8 @@ compose-logs:
 
 compose-smoke: docker-build data-dir
 	@echo "Running TASK-005 container API round-trip smoke test..."
+	@bash ./scripts/container-smoke.sh .
+
+compose-persistence: docker-build data-dir
+	@echo "Running TASK-005 & TASK-006 container API + persistence smoke test..."
 	@bash ./scripts/container-smoke.sh .
