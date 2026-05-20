@@ -10,10 +10,11 @@ Each atomic task lives in its own file so an implementation agent can load only 
 6. [TASK-006: Verify Compose SQLite Persistence](/home/nulad/repo/nulad/taskagent/docs/T-052-task-006-compose-sqlite-persistence.md)
 7. [TASK-007: Write Generic VPS Deployment Docs](/home/nulad/repo/nulad/taskagent/docs/T-052-task-007-generic-vps-deployment-docs.md)
 8. [TASK-008: Run and Stabilize T-052 Suite](/home/nulad/repo/nulad/taskagent/docs/T-052-task-008-run-and-stabilize.md)
+9. [TASK-009: Fix Compose Bind-Mount Permission Failure](/home/nulad/repo/nulad/taskagent/docs/T-052-task-009-fix-compose-bind-mount-permissions.md)
 
 ## Execution Order
 
-Start with TASK-001 through TASK-003 to create the deployment artifacts. TASK-004 through TASK-006 verify the artifacts in increasing scope. TASK-007 can run after TASK-002 and may run in parallel with TASK-004. TASK-008 must run last.
+Start with TASK-001 through TASK-003 to create the deployment artifacts. TASK-004 through TASK-006 verify the artifacts in increasing scope. TASK-007 can run after TASK-002 and may run in parallel with TASK-004. TASK-009 should run after TASK-002 (and ideally before TASK-008) to harden first-run Compose behavior. TASK-008 should run after all implementation and verification fixes are complete.
 
 ## Parallelization
 
@@ -21,4 +22,5 @@ Start with TASK-001 through TASK-003 to create the deployment artifacts. TASK-00
 - TASK-004 can run in parallel with TASK-007 after TASK-001 exists.
 - TASK-005 must wait for TASK-001 and TASK-002.
 - TASK-006 must wait for TASK-005.
-- TASK-008 must wait for all previous tasks.
+- TASK-009 can run after TASK-002 and in parallel with TASK-004 through TASK-007.
+- TASK-008 must wait for all previous tasks, including TASK-009.
