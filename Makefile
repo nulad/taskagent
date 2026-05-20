@@ -38,6 +38,6 @@ compose-down:
 compose-logs:
 	docker compose logs -f taskagent
 
-compose-smoke:
-	@echo "Delegating to smoke verification (see TASK-005)"
-	@echo "Run 'make compose-logs' separately to inspect service logs."
+compose-smoke: docker-build data-dir
+	@echo "Running TASK-005 container API round-trip smoke test..."
+	@bash ./scripts/container-smoke.sh .
