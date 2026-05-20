@@ -1,0 +1,15 @@
+services:
+  taskagent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: taskagent:local
+    ports:
+      - "8080:8080"
+    environment:
+      - TASKAGENT_LISTEN_ADDR=:8080
+      - TASKAGENT_DB_PATH=/data/taskagent.db
+      - TASKAGENT_LOG_LEVEL=info
+      - TASKAGENT_CORS_ORIGINS=${TASKAGENT_CORS_ORIGINS:-}
+    volumes:
+      - ./data:/data
