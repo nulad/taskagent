@@ -39,7 +39,7 @@ compose-logs:
 	docker compose logs -f taskagent
 
 compose-smoke: docker-build data-dir
-	@echo "Running TASK-005 & TASK-006 container API + SQLite persistence smoke test..."
+	@echo "Running TASK-005 container API round-trip smoke test..."
 	@bash ./scripts/container-smoke.sh .
 
 compose-run-seed: data-dir

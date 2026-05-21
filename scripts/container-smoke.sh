@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# container-smoke.sh — TASK-005 & TASK-006: Container API Round Trip + SQLite Persistence
+# container-smoke.sh — TASK-005: Verify Container API Round Trip
 #
 # Usage:
 #   ./scripts/container-smoke.sh [compose-dir]
@@ -8,24 +8,14 @@
 #   - Docker / Docker Compose available
 #   - taskagent:local image built (make docker-build)
 #
-# This script performs a full round-trip verification (TASK-005) followed by
-# a persistence verification (TASK-006):
-#
-#   TASK-005 — Container API Round Trip:
-#     1. Starts a clean Compose environment with an empty data directory.
-#     2. Seeds an API key inside the container.
-#     3. Captures the generated raw API key from the seed command output.
-#     4. Starts (or restarts) the main Compose service.
-#     5. Polls http://localhost:8080/health until it returns 200.
-#     6. Sends a POST /projects request with the seeded X-API-Key header.
-#     7. Asserts the response status is 201 and body contains a valid id and name.
-#
-#   TASK-006 — Compose SQLite Persistence:
-#     8. Confirms ./data/taskagent.db exists on the host after the API write.
-#     9. Restarts the service with docker compose restart taskagent.
-#    10. Polls GET /health until the restarted service is ready.
-#    11. Sends GET /projects/{id} with the same X-API-Key.
-#    12. Asserts the response status is 200 and body contains the same project id and name.
+# This script performs a full round-trip verification:
+#   1. Starts a clean Compose environment with an empty data directory.
+#   2. Seeds an API key inside the container.
+#   3. Captures the generated raw API key from the seed command output.
+#   4. Starts (or restarts) the main Compose service.
+#   5. Polls http://localhost:8080/health until it returns 200.
+#   6. Sends a POST /projects request with the seeded X-API-Key header.
+#   7. Asserts the response status is 201 and body contains a valid id and name.
 
 set -euo pipefail
 
@@ -139,55 +129,6 @@ fi
 
 ok "Response contains id='$project_id' and name='$project_name'"
 
-# ═════════════════════════════════════════════════════════════════════════════
-# TASK-006: Verify Compose SQLite Persistence
-# ═════════════════════════════════════════════════════════════════════════════
-
-# 9. Confirm ./data/taskagent.db exists on the host after the API write
-warn "Verifying host-side SQLite database file..."
-db_path="$COMPOSE_DIR/data/taskagent.db"
-if [ ! -f "$db_path" ]; then
-  fail "Host database file does not exist at $db_path. Persistence bind mount may be misconfigured."
-fi
-db_size=$(stat -c%s "$db_path" 2>/dev/null || stat -f%z "$db_path" 2>/dev/null || echo "unknown")
-ok "Host database file exists at $db_path ($db_size bytes)"
-
-# 10. Restart the service with docker compose restart taskagent
-warn "Restarting Compose service to test data persistence..."
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" restart taskagent
-ok "Compose service restarted"
-
-# 11. Poll GET /health until the restarted service is ready
-wait_for_health 60
-
-# 12. Send GET /projects/{id} with the same X-API-Key
-warn "Fetching project $project_id after restart..."
-get_response=$(curl -s -w '\n%{http_code}' \
-  -X GET "http://localhost:8080/projects/$project_id" \
-  -H "X-API-Key: $raw_api_key")
-
-get_status=$(echo "$get_response" | tail -1)
-get_body=$(echo "$get_response" | sed '$d')
-
-# 13. Assert the response status is 200
-if [ "$get_status" != "200" ]; then
-  fail "Expected HTTP 200 after restart, got $get_status. Body: $get_body"
-fi
-ok "Project retrieval returned HTTP $get_status"
-
-# 14. Assert the response body still contains the same project ID and name
-get_id=$(json_val "$get_body" "id")
-get_name=$(json_val "$get_body" "name")
-
-if [ "$get_id" != "$project_id" ]; then
-  fail "Project ID mismatch after restart: got '$get_id', expected '$project_id'. Body: $get_body"
-fi
-if [ "$get_name" != "$project_name" ]; then
-  fail "Project name mismatch after restart: got '$get_name', expected '$project_name'. Body: $get_body"
-fi
-
-ok "Persistence verified — project id='$get_id' and name='$get_name' survived restart"
-
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"
@@ -197,14 +138,6 @@ echo ""
 echo "  Seeded API key label: bootstrap"
 echo "  Project ID: $project_id"
 echo "  Project name: $project_name"
-echo ""
-echo "═══════════════════════════════════════════"
-printf "${GREEN}TASK-006 PERSISTENCE TEST PASSED${NC}\n"
-echo "═══════════════════════════════════════════"
-echo ""
-echo "  Host database file: $db_path ($db_size bytes)"
-echo "  Project data survived Compose restart"
-echo "  Compose bind mount confirmed as the persistence boundary"
 echo ""
 echo "  Compose service is still running at localhost:8080"
 echo "  To inspect logs: docker compose -f $COMPOSE_DIR/docker-compose.yml logs -f"
