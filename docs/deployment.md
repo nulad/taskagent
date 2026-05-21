@@ -13,6 +13,32 @@ maintaining the running instance.
 
 ---
 
+## Quick Start
+
+For a minimal deployment, follow these steps:
+
+```bash
+# 1. Build and push the Docker image
+make docker-build
+docker tag taskagent:local <registry.example.com/your-org/taskagent:latest>
+docker push <registry.example.com/your-org/taskagent:latest>
+
+# 2. Provision the VPS and prepare data directory
+ssh user@your-vps
+make data-dir  # Ensures proper ownership for non-root user
+
+# 3. Start the service
+make compose-up
+
+# 4. Bootstrap the first API key
+docker compose run --rm taskagent seed --user admin --label bootstrap
+
+# 5. Verify health
+curl -s http://localhost:8080/health
+```
+
+---
+
 ## Prerequisites
 
 Before you begin, ensure your local machine and target VPS have the following:
@@ -32,11 +58,7 @@ Before you begin, ensure your local machine and target VPS have the following:
 On your local machine (or CI build runner):
 
 ```bash
-# Using the project Makefile target
 make docker-build
-
-# Or directly
-docker build -t taskagent:local .
 ```
 
 This produces a multi-stage build output: a static Go binary in a minimal
@@ -88,11 +110,14 @@ Common registry options:
    # Use rsync, scp, or a CI artifact
    ```
 
-3. **Create the data directory** for SQLite persistence:
+3. **Prepare the data directory** with proper ownership for the container's non-root user:
 
    ```bash
-   mkdir -p ./data
+   make data-dir
    ```
+
+   This ensures the `./data` directory has the correct ownership (uid 100 / gid 101) for the
+   container's `appuser`, preventing "unable to open database file" errors.
 
 4. **Verify the image pulls correctly** (if using a remote image):
 
@@ -108,15 +133,14 @@ Start the container using Docker Compose. The compose file expects the image to 
 either built locally or pulled from a registry.
 
 ```bash
-# Pull (if using remote image) then start
-docker compose pull && docker compose up -d
+make compose-up
 ```
 
-If you built the image locally on the VPS:
+This command:
 
-```bash
-docker compose up -d --build
-```
+- Runs `make data-dir` to ensure proper data directory ownership
+- Pulls the image (if remote) or uses the local image
+- Starts the service with all configuration
 
 The service will:
 
@@ -163,7 +187,7 @@ services:
 Then restart:
 
 ```bash
-docker compose up -d
+make compose-up
 ```
 
 ---
@@ -215,7 +239,7 @@ built-in healthcheck probes this endpoint every 30 seconds.
 Stream service logs in real time:
 
 ```bash
-docker compose logs -f taskagent
+make compose-logs
 ```
 
 Or view the last N lines:
@@ -231,23 +255,17 @@ docker compose logs --tail=100 taskagent
 After configuration changes or image updates:
 
 ```bash
-# Restart in place (preserves data)
-docker compose restart
-
 # Pull a new image and restart
-docker compose pull && docker compose up -d
+make compose-up
+
+# Or restart in place (preserves data)
+docker compose restart
 ```
 
 To stop completely:
 
 ```bash
-docker compose down
-```
-
-To stop and remove containers (data persists in `./data`):
-
-```bash
-docker compose down
+make compose-down
 ```
 
 To stop and remove everything including the container (data in `./data` is preserved
@@ -268,9 +286,9 @@ regularly:
 
 ```bash
 # Stop the service, copy the database, restart
-docker compose down
+make compose-down
 cp ./data/taskagent.db ./data/taskagent.db.backup.$(date +%Y%m%d%H%M%S)
-docker compose up -d
+make compose-up
 ```
 
 ### Online backup (no downtime)
@@ -293,10 +311,26 @@ For zero-downtime online backups, consider:
 Restore from backup:
 
 ```bash
-docker compose down
+make compose-down
 cp ./data/taskagent.db.backup.20260101120000 ./data/taskagent.db
-docker compose up -d
+make compose-up
 ```
+
+---
+
+## 11. Makefile Commands Reference
+
+| Command | Purpose |
+|---|---|
+| `make docker-build` | Build the Docker image locally |
+| `make data-dir` | Prepare data directory with proper ownership (uid 100:gid 101) |
+| `make compose-up` | Pull image and start service (includes `data-dir` preparation) |
+| `make compose-down` | Stop service (preserves data in `./data`) |
+| `make compose-logs` | Stream container logs |
+| `docker compose run --rm taskagent seed --user admin --label bootstrap` | Create first API key |
+| `curl -s http://localhost:8080/health` | Health check |
+| `docker compose restart` | Restart service in place |
+| `docker compose down --remove-orphans` | Stop and remove containers (data preserved via bind mount) |
 
 ---
 
@@ -307,16 +341,16 @@ docker compose up -d
 The host-side `./data` directory must be writable by the container's `appuser`.
 
 ```bash
-mkdir -p ./data
-docker compose down
-docker compose up -d
+make data-dir
+make compose-down
+make compose-up
 ```
 
 If the issue persists, fix ownership manually:
 
 ```bash
 docker run --rm -v $(pwd)/data:/data alpine:3.20 chown 100:101 /data
-docker compose up -d
+make compose-up
 ```
 
 ### Container exits immediately
@@ -324,7 +358,7 @@ docker compose up -d
 Check logs for configuration errors:
 
 ```bash
-docker compose logs taskagent
+make compose-logs
 ```
 
 Ensure the image tag in `docker-compose.yml` matches the image you pushed or built.
@@ -348,7 +382,7 @@ ports:
 Restart:
 
 ```bash
-docker compose up -d
+make compose-up
 ```
 
 ### High disk usage from logs
@@ -371,12 +405,15 @@ services:
 
 | Command | Purpose |
 |---|---|
-| `docker build -t taskagent:local .` | Build the Docker image locally |
+| `make docker-build` | Build the Docker image locally |
 | `docker push registry.example.com/org/taskagent:latest` | Push to OCI registry |
-| `docker compose pull && docker compose up -d` | Pull image and start service |
+| `make compose-up` | Pull image and start service |
 | `docker compose run --rm taskagent seed --user admin --label bootstrap` | Create first API key |
 | `curl -s http://localhost:8080/health` | Health check |
-| `docker compose logs -f taskagent` | Stream logs |
-| `docker compose restart` | Restart service |
-| `docker compose down` | Stop service (data preserved) |
+| `make compose-logs` | Stream logs |
+| `make compose-down` | Stop service (data preserved) |
+| `docker compose restart` | Restart service in place |
+| `docker compose down --remove-orphans` | Stop and remove containers |
 | `cp ./data/taskagent.db ./data/taskagent.db.backup` | Backup database |
+| `make data-dir` | Prepare data directory with proper ownership |
+
