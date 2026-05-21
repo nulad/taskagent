@@ -32,7 +32,7 @@ Before you begin, ensure your local machine and target VPS have the following:
 On your local machine (or CI build runner):
 
 ```bash
-# Using the project Makefile target
+# Using the @Makefile target
 make docker-build
 
 # Or directly
