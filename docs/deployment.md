@@ -91,8 +91,12 @@ Common registry options:
 3. **Create the data directory** for SQLite persistence:
 
    ```bash
-   mkdir -p ./data
+   make data-dir
    ```
+
+   This command:
+   - Creates `./data` directory with correct ownership
+   - Sets permissions so `appuser` (uid 100 / gid 101) can write to SQLite
 
 4. **Verify the image pulls correctly** (if using a remote image):
 
@@ -104,18 +108,15 @@ Common registry options:
 
 ## 4. Start the Service
 
-Start the container using Docker Compose. The compose file expects the image to be
-either built locally or pulled from a registry.
+Start the container using Docker Compose. The `compose-up` target handles
+both pulling the image and starting the service:
 
 ```bash
-# Pull (if using remote image) then start
+# Pull (if using remote image) then start with Makefile
+make compose-up
+
+# Or directly
 docker compose pull && docker compose up -d
-```
-
-If you built the image locally on the VPS:
-
-```bash
-docker compose up -d --build
 ```
 
 The service will:
@@ -163,7 +164,7 @@ services:
 Then restart:
 
 ```bash
-docker compose up -d
+make compose-up
 ```
 
 ---
@@ -174,6 +175,9 @@ Before the service can accept authenticated requests, you must create the first
 API key. Use the `seed` subcommand:
 
 ```bash
+make compose-run-seed --user=admin --label=bootstrap
+
+# Or directly
 docker compose run --rm taskagent seed --user admin --label bootstrap
 ```
 
@@ -196,6 +200,9 @@ curl -H "Authorization: Bearer <your-api-key>" http://localhost:8080/health
 Confirm the service is running and healthy:
 
 ```bash
+make compose-smoke
+
+# Or directly
 curl -s http://localhost:8080/health
 ```
 
@@ -215,6 +222,9 @@ built-in healthcheck probes this endpoint every 30 seconds.
 Stream service logs in real time:
 
 ```bash
+make compose-logs
+
+# Or directly
 docker compose logs -f taskagent
 ```
 
@@ -232,29 +242,19 @@ After configuration changes or image updates:
 
 ```bash
 # Restart in place (preserves data)
-docker compose restart
+make compose-down && make compose-up
 
 # Pull a new image and restart
-docker compose pull && docker compose up -d
+make compose-up
 ```
 
 To stop completely:
 
 ```bash
+make compose-down
+
+# Or directly
 docker compose down
-```
-
-To stop and remove containers (data persists in `./data`):
-
-```bash
-docker compose down
-```
-
-To stop and remove everything including the container (data in `./data` is preserved
-because it is a bind mount):
-
-```bash
-docker compose down --remove-orphans
 ```
 
 ---
@@ -267,10 +267,9 @@ regularly:
 ### Simple file-level backup
 
 ```bash
-# Stop the service, copy the database, restart
-docker compose down
+make compose-down
 cp ./data/taskagent.db ./data/taskagent.db.backup.$(date +%Y%m%d%H%M%S)
-docker compose up -d
+make compose-up
 ```
 
 ### Online backup (no downtime)
@@ -293,9 +292,9 @@ For zero-downtime online backups, consider:
 Restore from backup:
 
 ```bash
-docker compose down
+make compose-down
 cp ./data/taskagent.db.backup.20260101120000 ./data/taskagent.db
-docker compose up -d
+make compose-up
 ```
 
 ---
@@ -307,16 +306,16 @@ docker compose up -d
 The host-side `./data` directory must be writable by the container's `appuser`.
 
 ```bash
-mkdir -p ./data
-docker compose down
-docker compose up -d
+make data-dir
+make compose-down
+make compose-up
 ```
 
 If the issue persists, fix ownership manually:
 
 ```bash
 docker run --rm -v $(pwd)/data:/data alpine:3.20 chown 100:101 /data
-docker compose up -d
+make compose-up
 ```
 
 ### Container exits immediately
@@ -324,7 +323,7 @@ docker compose up -d
 Check logs for configuration errors:
 
 ```bash
-docker compose logs taskagent
+make compose-logs
 ```
 
 Ensure the image tag in `docker-compose.yml` matches the image you pushed or built.
@@ -348,7 +347,7 @@ ports:
 Restart:
 
 ```bash
-docker compose up -d
+make compose-up
 ```
 
 ### High disk usage from logs
@@ -371,12 +370,11 @@ services:
 
 | Command | Purpose |
 |---|---|
-| `docker build -t taskagent:local .` | Build the Docker image locally |
-| `docker push registry.example.com/org/taskagent:latest` | Push to OCI registry |
-| `docker compose pull && docker compose up -d` | Pull image and start service |
-| `docker compose run --rm taskagent seed --user admin --label bootstrap` | Create first API key |
+| `make docker-build` | Build the Docker image locally |
+| `make data-dir` | Prepare data directory with correct ownership |
+| `make compose-up` | Pull image and start service |
+| `make compose-down` | Stop service (data preserved) |
+| `make compose-logs` | Stream logs |
+| `make compose-smoke` | Run smoke test (health check + API round-trip) |
+| `make compose-run-seed --user=admin` | Create first API key |
 | `curl -s http://localhost:8080/health` | Health check |
-| `docker compose logs -f taskagent` | Stream logs |
-| `docker compose restart` | Restart service |
-| `docker compose down` | Stop service (data preserved) |
-| `cp ./data/taskagent.db ./data/taskagent.db.backup` | Backup database |

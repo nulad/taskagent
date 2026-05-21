@@ -1,4 +1,4 @@
-.PHONY: build run test lint docker-build data-dir compose-up compose-down compose-logs compose-smoke
+.PHONY: build run test lint docker-build data-dir compose-up compose-down compose-logs compose-smoke compose-run-seed
 
 build:
 	go build ./...
@@ -41,3 +41,9 @@ compose-logs:
 compose-smoke: docker-build data-dir
 	@echo "Running TASK-005 container API round-trip smoke test..."
 	@bash ./scripts/container-smoke.sh .
+
+compose-run-seed: data-dir
+	@echo "Creating first API key..."
+	@if [ -z "${USER}" ]; then echo "Error: USER not set"; exit 1; fi
+	@if [ -z "${LABEL}" ]; then echo "Error: LABEL not set"; exit 1; fi
+	docker compose run --rm taskagent seed --user $(USER) --label $(LABEL)
