@@ -177,7 +177,7 @@ func TestRequestLoggingMiddleware(t *testing.T) {
 	}
 
 	var logEntry map[string]interface{}
-	if err := json.Unmarshal([]byte(logOutput), nil); err != nil {
+	if err := json.Unmarshal([]byte(logOutput), &logEntry); err != nil {
 		// Try parsing each line if multiple lines
 		lines := strings.Split(strings.TrimSpace(logOutput), "\n")
 		for _, line := range lines {
