@@ -109,13 +109,16 @@ Common registry options:
 ## 4. Start the Service
 
 Start the container using Docker Compose. The `compose-up` target handles
-both pulling the image and starting the service:
+building the local image and starting the service:
 
 ```bash
-# Pull (if using remote image) then start with Makefile
+# Build locally and start in the foreground with Makefile
 make compose-up
 
-# Or directly
+# Or build locally and start directly in detached mode
+docker compose up --build -d
+
+# If deploying an image already pushed to a registry
 docker compose pull && docker compose up -d
 ```
 
@@ -136,7 +139,7 @@ TaskAgent reads its configuration from environment variables. The defaults are:
 | `TASKAGENT_LISTEN_ADDR` | TCP address to listen on | `:8080` |
 | `TASKAGENT_DB_PATH` | SQLite database path (inside container) | `/data/taskagent.db` |
 | `TASKAGENT_LOG_LEVEL` | Logging level (`debug`, `info`, `warn`, `error`) | `info` |
-| `TASKAGENT_CORS_ORIGINS` | Comma-separated CORS origins | *(empty — all origins allowed)* |
+| `TASKAGENT_CORS_ORIGINS` | Comma-separated browser origins allowed to call the API | *(empty — no cross-origin browser access)* |
 
 ### Setting overrides
 
@@ -175,7 +178,7 @@ Before the service can accept authenticated requests, you must create the first
 API key. Use the `seed` subcommand:
 
 ```bash
-make compose-run-seed --user=admin --label=bootstrap
+USER=admin LABEL=bootstrap make compose-run-seed
 
 # Or directly
 docker compose run --rm taskagent seed --user admin --label bootstrap
@@ -187,10 +190,10 @@ This command:
 - Creates the first API key for the specified user
 - Prints the generated key to stdout — **copy it immediately**, it will not be shown again
 
-After bootstrapping, include the key in the `Authorization` header for all API calls:
+After bootstrapping, include the key in the `X-API-Key` header for protected API calls:
 
 ```bash
-curl -H "Authorization: Bearer <your-api-key>" http://localhost:8080/health
+curl -H "X-API-Key: <your-api-key>" http://localhost:8080/projects
 ```
 
 ---
@@ -209,7 +212,7 @@ curl -s http://localhost:8080/health
 Expected response:
 
 ```json
-{"status":"healthy"}
+{"status":"ok"}
 ```
 
 If the service is not ready yet, wait a few seconds and retry. The container's
@@ -278,7 +281,7 @@ Use SQLite's online backup API or the `sqlite3` `.backup` command on the host
 while the container runs. Docker's volume mount ensures the file is accessible:
 
 ```bash
-# Copy while running (may capture an in-consistent state for very large DBs)
+# Copy while running (may capture an inconsistent state for very large DBs)
 cp ./data/taskagent.db ./data/taskagent.db.backup.$(date +%Y%m%d%H%M%S)
 ```
 
@@ -372,9 +375,9 @@ services:
 |---|---|
 | `make docker-build` | Build the Docker image locally |
 | `make data-dir` | Prepare data directory with correct ownership |
-| `make compose-up` | Pull image and start service |
+| `make compose-up` | Build local image and start service |
 | `make compose-down` | Stop service (data preserved) |
 | `make compose-logs` | Stream logs |
 | `make compose-smoke` | Run smoke test (health check + API round-trip) |
-| `make compose-run-seed --user=admin` | Create first API key |
+| `USER=admin LABEL=bootstrap make compose-run-seed` | Create first API key |
 | `curl -s http://localhost:8080/health` | Health check |
