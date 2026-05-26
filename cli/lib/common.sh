@@ -55,25 +55,14 @@ log() {
 # Example: require_cmd curl jq
 #          require_cmd grep sed awk
 #
-# Fails with an error message if any specified command is not found.
+# Fails fast on the first missing command with an error message.
 #
 require_cmd() {
-    _req_cmd_count="${#@}"
-    _missing_cmds=""
-
     for _cmd in "$@"; do
         if ! command -v "$_cmd" >/dev/null 2>&1; then
-            if [ -n "$_missing_cmds" ]; then
-                _missing_cmds="$_missing_cmds, $_cmd"
-            else
-                _missing_cmds="$_cmd"
-            fi
+            die "missing required command: $_cmd"
         fi
     done
-
-    if [ -n "$_missing_cmds" ]; then
-        die "missing required command: $_missing_cmds"
-    fi
 }
 
 # ============================================================================
@@ -87,13 +76,16 @@ require_cmd() {
 # it (e.g., most modern sh implementations and bash). It does not fail if
 # pipefail is not available.
 #
+# Probes support in a subshell, then enables in the current shell only if
+# supported. This ensures pipefail is actually enabled when the shell
+# supports it.
+#
 enable_pipefail() {
-    # Enable pipefail if supported by the shell (bash 4+, dash 0.5.5+, etc.)
-    # pipefail causes a pipeline to return the exit status of the last command
-    # that exited with a non-zero status, rather than zero.
-    # This is best-effort; if the shell doesn't support pipefail, this does nothing.
-    # Note: In POSIX sh (e.g., dash), this may produce a warning but does not fail.
-    (set -o pipefail 2>/dev/null || true) || true
+    # Probe support in a subshell first
+    if (set -o pipefail) 2>/dev/null; then
+        # Shell supports pipefail, enable it in the current shell
+        set -o pipefail
+    fi
 }
 
 # ============================================================================
@@ -114,10 +106,8 @@ enable_pipefail() {
 #
 
 # ============================================================================
-# Note: enable_pipefail() uses a subshell to avoid issues with POSIX sh
-# (e.g., dash) that don't support pipefail. The function may produce a
-# warning but will not fail the script. To ensure pipefail is enabled,
-# use bash explicitly: `#!/bin/bash` instead of `#!/bin/sh`.
-# The double `|| true` ensures the function never fails, even when
-# pipefail is not supported in POSIX sh.
+# Note: enable_pipefail() probes pipefail support in a subshell to avoid
+# issues with POSIX sh (e.g., dash) that don't support it. If supported,
+# pipefail is enabled in the current shell. If not supported, the function
+# silently does nothing (no error, no warning).
 # ============================================================================
