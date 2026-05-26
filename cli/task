@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+set -eu
+
+VERSION="0.2.0"
+
+usage() {
+    cat <<EOF
+Usage: task <command> [args...]
+
+Commands:
+  help            Show this help message
+  login           Log in to the platform
+  whoami          Show current user information
+  projects        Manage projects
+  add             Add a new project
+  list            List projects
+  show            Show project details
+  update          Update a project
+  delete          Delete a project
+  move            Move a project
+  completion      Generate shell completion scripts
+
+EOF
+}
+
+if [ $# -eq 0 ]; then
+    usage >&2
+    exit 2
+fi
+
+case "$1" in
+    help|--help)
+        usage
+        exit 0
+        ;;
+    --version)
+        echo "$VERSION"
+        exit 0
+        ;;
+    login|whoami|projects|add|list|show|update|delete|move|completion)
+        echo "not implemented: $1" >&2
+        exit 2
+        ;;
+    *)
+        echo "unknown command: $1" >&2
+        exit 2
+        ;;
+esac
