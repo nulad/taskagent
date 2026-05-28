@@ -4,25 +4,23 @@
 
 - **Task ID & Title:** TASK-013: Implement Project Update Command
 - **Objective:** Add `task projects update ID [--name NAME] [--description TEXT]` with partial JSON fields.
-- **Target Files/Scope:** `cli/lib/cmd_projects.sh`
+- **Target Files/Scope:** `cli/src/taskagent_cli/cli.py`, `cli/src/taskagent_cli/models.py`
 - **Token Budget Heuristic:**
-  * Estimated Existing Code Context: Low - this modifies one existing command module.
-  * Dependencies: Project command dispatch from TASK-011; `jq`; `api_request`.
+  * Estimated Existing Code Context: Low - this modifies the existing project command group.
+  * Dependencies: Project command group from TASK-011; payload helpers from TASK-002.
 
 ## Step-by-step Instructions
 
-1. Extend `cmd_projects.sh` with a `projects_update()` function.
-2. Require the project ID as the first positional argument.
-3. Parse optional `--name` and `--description` flags.
-4. Require at least one update field.
-5. Build the JSON body with `jq`, including only fields that were provided.
-6. PUT the payload to `/projects/{id}` using `api_request`.
-7. Print the updated project JSON to stdout.
-8. Reject unknown flags and extra positional arguments with exit 2.
+1. Add `task projects update ID`.
+2. Define optional `--name` and `--description` options.
+3. Require at least one update field.
+4. Build a Python dict containing only fields the user provided.
+5. Call `PUT /projects/{id}`.
+6. Print the updated project JSON to stdout.
+7. Let Click reject unknown flags and extra positional arguments.
 
 ## Definition of Done
 
-- `./cli/task projects update <id> --name New` sends only `name`.
-- `./cli/task projects update <id> --description Text` sends only `description`.
+- `task projects update <id> --name New` sends only `name`.
+- `task projects update <id> --description Text` sends only `description`.
 - Calling update with no fields exits 2.
-

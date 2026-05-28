@@ -4,27 +4,24 @@
 
 - **Task ID & Title:** TASK-021: Implement Task Move Command
 - **Objective:** Add `task move ID STATUS` with local status validation and PATCH request behavior.
-- **Target Files/Scope:** `cli/lib/cmd_move.sh`, `cli/task`
+- **Target Files/Scope:** `cli/src/taskagent_cli/cli.py`, `cli/src/taskagent_cli/models.py`
 - **Token Budget Heuristic:**
-  * Estimated Existing Code Context: Low - this adds one small command module and one dispatch branch.
-  * Dependencies: `api_request`; known status values from the API model.
+  * Estimated Existing Code Context: Low - this adds one Click command and reuses existing helpers.
+  * Dependencies: `TaskAgentClient`; known status values from TASK-002.
 
 ## Step-by-step Instructions
 
-1. Add `cli/lib/cmd_move.sh`.
-2. Define a single status list: `backlog`, `todo`, `in-progress`, `review`, `done`.
-3. Implement `cmd_move()` requiring exactly `ID` and `STATUS`.
-4. Validate `STATUS` locally against the known list before calling the network.
-5. Invalid local status must exit 2 with `invalid status: X (must be one of: backlog, todo, in-progress, review, done)`.
-6. Build the JSON body with `jq -n --arg status "$status" '{status: $status}'`.
-7. PATCH `/tasks/{id}/move` through `api_request`.
-8. Print the moved task JSON to stdout.
-9. Let server-side 422 transition errors flow through `api_request` as exit 3.
-10. Wire top-level `move` dispatch in `cli/task`.
+1. Implement top-level `task move ID STATUS`.
+2. Validate `STATUS` locally against the known status list before calling the network.
+3. Invalid local status must exit 2 with `invalid status: X (must be one of: backlog, todo, in-progress, review, done)`.
+4. Build the JSON body as `{"status": status}`.
+5. Call `PATCH /tasks/{id}/move`.
+6. Print the moved task JSON to stdout.
+7. Let server-side 422 transition errors flow through shared API mapping as exit 3.
+8. Expose status values for Click completion in TASK-028.
 
 ## Definition of Done
 
-- `./cli/task move <id> todo` PATCHes `/tasks/<id>/move`.
-- `./cli/task move <id> in_progress` exits 2 before hitting the network.
+- `task move <id> todo` PATCHes `/tasks/<id>/move`.
+- `task move <id> in_progress` exits 2 before hitting the network.
 - Server 422 errors print the server message and exit 3.
-

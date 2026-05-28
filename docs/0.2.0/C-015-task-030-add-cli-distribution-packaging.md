@@ -1,29 +1,27 @@
-# TASK-030: Add CLI Distribution Packaging
+# TASK-030: Add Python Distribution Packaging
 
 ## Token Safety Verification
 
-- **Task ID & Title:** TASK-030: Add CLI Distribution Packaging
-- **Objective:** Add `make -C cli dist` packaging and an idempotent CLI installer script.
-- **Target Files/Scope:** `cli/Makefile`, `cli/install.sh`
+- **Task ID & Title:** TASK-030: Add Python Distribution Packaging
+- **Objective:** Add Python wheel/source distribution packaging and local install documentation.
+- **Target Files/Scope:** `cli/Makefile`, `cli/pyproject.toml`, `cli/README.md`
 - **Token Budget Heuristic:**
-  * Estimated Existing Code Context: Low - this updates one small Makefile and adds one installer script.
-  * Dependencies: CLI file layout from implementation tasks; version constant from `cli/task`.
+  * Estimated Existing Code Context: Low - this updates package metadata, Makefile targets, and README notes.
+  * Dependencies: CLI package layout from implementation tasks; version constant from `taskagent_cli.__version__`.
 
 ## Step-by-step Instructions
 
-1. Extend `cli/Makefile` with a `dist` target.
-2. Produce `dist/task-0.2.0.tar.gz` or derive the version from `cli/task` if practical.
-3. Include `task`, `lib/*.sh`, `install.sh`, and CLI README files in the tarball.
-4. Add `cli/install.sh` with POSIX `sh` compatibility.
-5. Make the installer copy `task` to `~/.local/bin/task`.
-6. Make the installer copy `lib/*.sh` to `~/.local/share/taskagent/lib`.
-7. Create target directories if missing.
-8. Make installation idempotent: re-running updates existing files without duplication.
-9. Preserve executable mode for the installed `task` script.
-10. Avoid requiring sudo.
+1. Ensure `cli/pyproject.toml` includes build-system metadata.
+2. Ensure package discovery includes `src/taskagent_cli`.
+3. Extend `cli/Makefile` with a `build` target that runs `python -m build`.
+4. Produce wheel and source distributions under `cli/dist/`.
+5. Document `pipx install ./cli/dist/*.whl` as the local install path.
+6. Document editable development install with the chosen package manager.
+7. Verify the installed wheel exposes the `task` console script.
+8. Avoid requiring sudo or global site-packages installs.
 
 ## Definition of Done
 
-- `make -C cli dist` creates a tarball under `cli/dist/`.
-- The tarball contains the executable, library files, installer, and README.
-- Running `cli/install.sh` twice succeeds and leaves one updated install.
+- `make -C cli build` creates wheel and sdist artifacts under `cli/dist/`.
+- The wheel contains the Python package and console script metadata.
+- `pipx install ./cli/dist/*.whl` installs a working `task` command.

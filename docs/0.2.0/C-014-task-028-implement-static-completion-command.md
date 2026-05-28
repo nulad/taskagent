@@ -1,30 +1,28 @@
-# TASK-028: Implement Static Completion Command
+# TASK-028: Implement Click Completion Command
 
 ## Token Safety Verification
 
-- **Task ID & Title:** TASK-028: Implement Static Completion Command
-- **Objective:** Add `task completion bash` and `task completion zsh` that print sourceable static completion scripts.
-- **Target Files/Scope:** `cli/lib/cmd_completion.sh`, `cli/task`
+- **Task ID & Title:** TASK-028: Implement Click Completion Command
+- **Objective:** Add `task completion bash|zsh|fish` helpers around Click's built-in shell completion support.
+- **Target Files/Scope:** `cli/src/taskagent_cli/cli.py`
 - **Token Budget Heuristic:**
-  * Estimated Existing Code Context: Low - this adds one command module containing static script templates and one dispatch branch.
+  * Estimated Existing Code Context: Low - this adds one command and status completion metadata.
   * Dependencies: Final command and flag names from previous tasks; known task status values.
 
 ## Step-by-step Instructions
 
-1. Add `cli/lib/cmd_completion.sh`.
-2. Implement `cmd_completion()` requiring one shell argument: `bash` or `zsh`.
-3. For `bash`, print a complete script using `complete -F`.
-4. For `zsh`, print a complete script using `compdef`.
-5. Include static completion for top-level subcommands.
-6. Include relevant long flags for each command group.
-7. Complete task statuses for `task move <id> <TAB>` as `backlog`, `todo`, `in-progress`, `review`, and `done`.
-8. Do not implement dynamic task ID or project name completion unless it fits without adding API calls.
-9. Wire top-level `completion` dispatch in `cli/task`.
-10. Unknown shell names exit 2.
+1. Add `task completion SHELL` where `SHELL` is one of `bash`, `zsh`, or `fish`.
+2. Use Click's documented completion environment variable mechanism for the installed `task` command.
+3. Print a sourceable completion script or exact setup command for the requested shell.
+4. Include static completion for top-level commands and long flags through Click metadata.
+5. Add shell completion for task status values on `task move`.
+6. Do not implement dynamic task ID or project name completion unless it fits without extra API calls.
+7. Unsupported shell names must exit 2.
 
 ## Definition of Done
 
-- `./cli/task completion bash` prints a sourceable Bash completion script.
-- `./cli/task completion zsh` prints a sourceable Zsh completion script.
-- Completion scripts include subcommands, flags, and status values.
+- `task completion bash` prints Bash completion setup output.
+- `task completion zsh` prints Zsh completion setup output.
+- `task completion fish` prints Fish completion setup output.
+- Completion includes commands, flags, and status values.
 - Unsupported shells exit 2.

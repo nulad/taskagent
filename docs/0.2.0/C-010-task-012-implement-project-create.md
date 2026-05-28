@@ -4,25 +4,24 @@
 
 - **Task ID & Title:** TASK-012: Implement Project Create Command
 - **Objective:** Add `task projects create --name NAME [--description TEXT]` with safe JSON payload construction.
-- **Target Files/Scope:** `cli/lib/cmd_projects.sh`
+- **Target Files/Scope:** `cli/src/taskagent_cli/cli.py`
 - **Token Budget Heuristic:**
-  * Estimated Existing Code Context: Low - only the existing project command module is needed.
-  * Dependencies: Project command dispatch from TASK-011; `jq`; `api_request`.
+  * Estimated Existing Code Context: Low - only the existing project command group is needed.
+  * Dependencies: Project command group from TASK-011; `TaskAgentClient`.
 
 ## Step-by-step Instructions
 
-1. Extend `cmd_projects.sh` with a `projects_create()` function.
-2. Parse `--name` and optional `--description` using a POSIX `while` and `case` loop.
-3. Require `--name`; missing name exits 2 with a usage message.
-4. Reject unknown flags with exit 2.
-5. Build the JSON payload with `jq -n --arg`, never with string concatenation.
-6. Include `description` only when the user provides it, unless the server contract explicitly requires an empty string.
-7. POST the payload to `/projects` using `api_request`.
-8. Print the created project JSON to stdout.
+1. Add `task projects create`.
+2. Define `--name` as a required Click option.
+3. Define optional `--description`.
+4. Build a Python dict payload rather than string-concatenating JSON.
+5. Include `description` only when the user provides it, unless the server contract explicitly requires an empty string.
+6. Call `POST /projects`.
+7. Print the created project JSON to stdout.
+8. Let Click reject unknown flags and missing required values.
 
 ## Definition of Done
 
-- `./cli/task projects create --name Demo` POSTs valid JSON to `/projects`.
+- `task projects create --name Demo` posts valid JSON to `/projects`.
 - Descriptions with spaces and quotes are encoded correctly.
 - Unknown flags and missing `--name` exit 2.
-
