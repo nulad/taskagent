@@ -80,6 +80,7 @@ require_cmd() {
 # supported. This ensures pipefail is actually enabled when the shell
 # supports it.
 #
+# shellcheck disable=SC3040
 enable_pipefail() {
     # Probe support in a subshell first
     if (set -o pipefail) 2>/dev/null; then
