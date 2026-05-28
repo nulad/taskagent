@@ -82,61 +82,231 @@ def projects() -> None:
 @projects.command(name="list")
 def projects_list() -> None:
     """List projects."""
-    raise NotImplementedError("TASK-011")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    config = load_config()
+    require_auth_config(config)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("GET", "/projects")
+    print_json(result or [])
 
 
 @projects.command(name="create")
-def projects_create() -> None:
+@click.option("--name", required=True, help="Project name")
+@click.option("--description", help="Project description")
+def projects_create(name: str, description: str | None) -> None:
     """Create a project."""
-    raise NotImplementedError("TASK-012")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    config = load_config()
+    require_auth_config(config)
+
+    payload: dict[str, str | None] = {"name": name}
+    if description is not None:
+        payload["description"] = description
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("POST", "/projects", json=payload)
+    print_json(result)
 
 
 @projects.command(name="show")
-def projects_show() -> None:
+@click.argument("project_id")
+def projects_show(project_id: str) -> None:
     """Show project details."""
-    raise NotImplementedError("TASK-011")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    config = load_config()
+    require_auth_config(config)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("GET", f"/projects/{project_id}")
+    print_json(result)
 
 
 @projects.command(name="update")
-def projects_update() -> None:
+@click.argument("project_id")
+@click.option("--name", help="New project name")
+@click.option("--description", help="New project description")
+def projects_update(project_id: str, name: str | None, description: str | None) -> None:
     """Update a project."""
-    raise NotImplementedError("TASK-013")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    if not name and not description:
+        raise click.UsageError("At least one of --name or --description is required")
+
+    config = load_config()
+    require_auth_config(config)
+
+    payload: dict[str, str] = {}
+    if name is not None:
+        payload["name"] = name
+    if description is not None:
+        payload["description"] = description
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("PUT", f"/projects/{project_id}", json=payload)
+    print_json(result)
 
 
 @projects.command(name="delete")
-def projects_delete() -> None:
+@click.argument("project_id")
+def projects_delete(project_id: str) -> None:
     """Delete a project."""
-    raise NotImplementedError("TASK-014")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    config = load_config()
+    require_auth_config(config)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("DELETE", f"/projects/{project_id}")
+    if result is not None:
+        print_json(result)
 
 
 @main.command()
-def add() -> None:
+@click.option("--title", required=True, help="Task title")
+@click.option("--project", required=True, help="Project ID")
+@click.option("--description", help="Task description")
+@click.option("--tags", help="Comma-separated tags")
+def add(title: str, project: str, description: str | None, tags: str | None) -> None:
     """Add a new task."""
-    raise NotImplementedError("TASK-016")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+    from taskagent_cli.models import parse_tags
+
+    config = load_config()
+    require_auth_config(config)
+
+    payload: dict[str, str | list[str]] = {
+        "title": title,
+        "project_id": project,
+    }
+    if description is not None:
+        payload["description"] = description
+    if tags is not None:
+        payload["tags"] = parse_tags(tags)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("POST", "/tasks", json=payload)
+    print_json(result)
 
 
-@main.command()
-def list() -> None:
+@main.command(name="list")
+@click.option("--project", help="Filter by project ID")
+@click.option("--status", help="Filter by task status")
+@click.option("--limit", type=int, help="Limit number of results")
+@click.option("--offset", type=int, help="Offset for pagination")
+def task_list(
+    project: str | None, status: str | None, limit: int | None, offset: int | None
+) -> None:
     """List tasks."""
-    raise NotImplementedError("TASK-016")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+    from taskagent_cli.models import is_valid_status
+
+    if status is not None and not is_valid_status(status):
+        raise click.UsageError(
+            f"Invalid status: {status} (must be one of: {', '.join(__import__('taskagent_cli.models', fromlist=['VALID_STATUSES']).VALID_STATUSES)})"
+        )
+
+    config = load_config()
+    require_auth_config(config)
+
+    params: dict[str, str | int] = {}
+    if project is not None:
+        params["project_id"] = project
+    if status is not None:
+        params["status"] = status
+    if limit is not None:
+        params["limit"] = limit
+    if offset is not None:
+        params["offset"] = offset
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("GET", "/tasks", params=params)
+    print_json(result or [])
 
 
 @main.command()
-def show() -> None:
+@click.argument("task_id")
+def show(task_id: str) -> None:
     """Show task details."""
-    raise NotImplementedError("TASK-016")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    config = load_config()
+    require_auth_config(config)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("GET", f"/tasks/{task_id}")
+    print_json(result)
 
 
 @main.command()
-def update() -> None:
+@click.argument("task_id")
+@click.option("--title", help="New task title")
+@click.option("--description", help="New task description")
+@click.option("--tags", help="New comma-separated tags")
+def update(
+    task_id: str, title: str | None, description: str | None, tags: str | None
+) -> None:
     """Update a task."""
-    raise NotImplementedError("TASK-018")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+    from taskagent_cli.models import parse_tags
+
+    if not title and not description and not tags:
+        raise click.UsageError(
+            "At least one of --title, --description, or --tags is required"
+        )
+
+    config = load_config()
+    require_auth_config(config)
+
+    payload: dict[str, str | list[str]] = {}
+    if title is not None:
+        payload["title"] = title
+    if description is not None:
+        payload["description"] = description
+    if tags is not None:
+        payload["tags"] = parse_tags(tags)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("PUT", f"/tasks/{task_id}", json=payload)
+    print_json(result)
 
 
 @main.command()
-def delete() -> None:
+@click.argument("task_id")
+def delete(task_id: str) -> None:
     """Delete a task."""
-    raise NotImplementedError("TASK-016")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+
+    config = load_config()
+    require_auth_config(config)
+
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("DELETE", f"/tasks/{task_id}")
+    if result is not None:
+        print_json(result)
 
 
 @main.command()
