@@ -14,6 +14,10 @@ check:
 		echo "Checking: task"; \
 		shellcheck -s sh "task"; \
 	fi
+	@if [ -f "check.sh" ]; then \
+		echo "Checking: check.sh"; \
+		shellcheck -s sh "check.sh"; \
+	fi
 	@for f in $$(find lib -name "*.sh" -type f 2>/dev/null); do \
 		[ -n "$$f" ] && { echo "Checking: $$f"; shellcheck -s sh "$$f"; } || exit 1; \
 	done
