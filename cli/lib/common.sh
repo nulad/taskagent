@@ -1,4 +1,5 @@
 # common.sh - Common shell helper functions
+# shellcheck shell=sh disable=SC3043
 # POSIX sh compatible - no Bash extensions, no [[ ... ]], no arrays, no source
 #
 # This file is designed to be sourced by other scripts, not executed directly.
@@ -89,26 +90,147 @@ enable_pipefail() {
     fi
 }
 
+
+
+# ============================================================================
+# Config Loading Precedence
+#
+# Precedence order (highest to lowest):
+#   1. Explicit CLI flags (set by command-specific argument parsers)
+#   2. Environment variables (TASKAGENT_SERVER, TASKAGENT_API_KEY, TASKAGENT_TIMEOUT)
+#   3. Config file ($TASKAGENT_HOME/config)
+#   4. Hardcoded defaults (TASKAGENT_TIMEOUT=10)
+#
+# Usage:
+#   . cli/lib/common.sh
+#   load_config          # reads config file if present
+#   require_auth_config  # exits with error if server/key not configured
+#
+# Command-specific flag overrides (set after load_config):
+#   TASKAGENT_SERVER="http://example.com"  # env or explicit flag override
+#   TASKAGENT_API_KEY="sk-xxx"             # env or explicit flag override
+#
+
+
+# --------------------------------------------------------------------------
+# default_taskagent_home() - Resolve the base configuration directory
+# --------------------------------------------------------------------------
+# Returns the path to the TaskAgent home directory.
+# Respects TASKAGENT_HOME env var, falls back to $HOME/.taskagent.
+#
+# shellcheck disable=SC2016
+# Usage: TASKAGENT_HOME="$(default_taskagent_home)"
+# --------------------------------------------------------------------------
+default_taskagent_home() {
+    echo "${TASKAGENT_HOME:-${HOME:-$HOME}/.taskagent}"
+}
+
+# --------------------------------------------------------------------------
+# load_config() - Load configuration from file
+# --------------------------------------------------------------------------
+# Reads $TASKAGENT_HOME/config if it exists and sources it.
+# The config file must contain KEY=VALUE lines (one per line).
+# Supported keys: TASKAGENT_SERVER, TASKAGENT_API_KEY, TASKAGENT_TIMEOUT.
+#
+# Config file values are only applied when the corresponding environment
+# variable is NOT already set — this preserves env-var precedence.
+# --------------------------------------------------------------------------
+load_config() {
+    local _config_dir
+    local _config_file
+
+    _config_dir="$(default_taskagent_home)"
+    _config_file="${_config_dir}/config"
+
+    # Only source the config file if it exists and is readable
+    if [ -r "$_config_file" ]; then
+        # Save current env values so we can restore them after sourcing
+        # This allows the config file to set defaults without overriding env
+        local _saved_server
+        local _saved_key
+        local _saved_timeout
+        _saved_server="${TASKAGENT_SERVER:-}"
+        _saved_key="${TASKAGENT_API_KEY:-}"
+        _saved_timeout="${TASKAGENT_TIMEOUT:-}"
+
+        # Source the config file — it will set TASKAGENT_* variables
+        # shellcheck disable=SC1090
+        . "$_config_file"
+
+        # Restore env vars if they were set before sourcing (env > file)
+        # If TASKAGENT_SERVER was set before load_config(), keep the env value
+        if [ -n "$_saved_server" ]; then
+            TASKAGENT_SERVER="$_saved_server"
+        fi
+        if [ -n "$_saved_key" ]; then
+            TASKAGENT_API_KEY="$_saved_key"
+        fi
+        if [ -n "$_saved_timeout" ]; then
+            TASKAGENT_TIMEOUT="$_saved_timeout"
+        fi
+    fi
+}
+
+# --------------------------------------------------------------------------
+# require_auth_config() - Validate that auth configuration is present
+# --------------------------------------------------------------------------
+# Exits with code 2 if TASKAGENT_SERVER or TASKAGENT_API_KEY is unset or
+# empty after config loading. Prints a helpful error directing the user to
+# run "task login" to set up credentials.
+#
+# Call this at the start of any authenticated subcommand.
+# --------------------------------------------------------------------------
+require_auth_config() {
+    local _missing=""
+
+    if [ -z "${TASKAGENT_SERVER:-}" ]; then
+        _missing="${_missing:+${_missing}, }TASKAGENT_SERVER"
+    fi
+    if [ -z "${TASKAGENT_API_KEY:-}" ]; then
+        _missing="${_missing:+${_missing}, }TASKAGENT_API_KEY"
+    fi
+
+    if [ -n "$_missing" ]; then
+        die 2 "
+missing required configuration:$_missing
+
+Configure ${_missing} via environment variable, config file, or 'task login'.
+"
+    fi
+}
+
+# --------------------------------------------------------------------------
+# Config defaults — applied after env and file values
+# --------------------------------------------------------------------------
+# These defaults are only applied if the variable is still unset after
+# load_config() has run and no environment override exists.
+#
+# TASKAGENT_TIMEOUT defaults to 10 seconds.
+# TASKAGENT_SERVER and TASKAGENT_API_KEY have no defaults — they must be
+# provided by the user via config file or environment.
+#
+# Usage: set_config_defaults
+# --------------------------------------------------------------------------
+set_config_defaults() {
+    : "${TASKAGENT_TIMEOUT:=10}"
+}
+
 # ============================================================================
 # Usage example (for reference, not part of the library):
 #
 #   . cli/lib/common.sh
 #
-#   require_cmd curl jq
-#   enable_pipefail
+#   load_config
+#   set_config_defaults
+#   require_auth_config
 #
-#   log "Starting download..."
-#   if command -v curl >/dev/null; then
-#       curl -s https://example.com | jq .
-#       log "Download completed"
-#   fi
+#   log "Server: $TASKAGENT_SERVER"
+#   log "Timeout: $TASKAGENT_TIMEOUT"
+#   log "Key: ${TASKAGENT_API_KEY:+***}${TASKAGENT_API_KEY#????}"
 #
-#   die "Download failed"
+#   # Later, a command-specific flag parser can override loaded values:
+#   #   TASKAGENT_SERVER="http://custom-host:8080"  # CLI flag override
 #
+# ============================================================================
 
-# ============================================================================
-# Note: enable_pipefail() probes pipefail support in a subshell to avoid
-# issues with POSIX sh (e.g., dash) that don't support it. If supported,
-# pipefail is enabled in the current shell. If not supported, the function
-# silently does nothing (no error, no warning).
-# ============================================================================
+
