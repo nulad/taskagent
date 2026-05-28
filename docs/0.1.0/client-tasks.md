@@ -18,9 +18,9 @@ The dashboard is human-first: it exists so you can glance at what the agents are
 
 ---
 
-## Moved: Shell CLI Client
+## Moved: CLI Client
 
-The Shell CLI client has moved to the 0.2.0 roadmap: [docs/0.2.0/cli-tasks.md](../0.2.0/cli-tasks.md).
+The Python Click CLI client has moved to the 0.2.0 roadmap: [docs/0.2.0/cli-tasks.md](../0.2.0/cli-tasks.md).
 
 ---
 
@@ -224,6 +224,6 @@ Add a Playwright smoke test that boots the API server locally, seeds a key, buil
 
 At ~5 hours/week, this is roughly 3 weeks.
 
-The Shell CLI plan now belongs to the 0.2.0 roadmap: [docs/0.2.0/cli-tasks.md](../0.2.0/cli-tasks.md).
+The Python Click CLI plan now belongs to the 0.2.0 roadmap: [docs/0.2.0/cli-tasks.md](../0.2.0/cli-tasks.md).
 
 **Phase 4+ — explicitly not planned in this roadmap:** MCP server wrapper, GitHub Issues sync, multi-user permissions refinement, real-time updates (WebSocket/SSE), drag-and-drop on the board, notifications. Revisit these only after the dashboard is deployed and you've used the tool yourself.
