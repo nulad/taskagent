@@ -177,7 +177,7 @@ def projects_delete(project_id: str) -> None:
 
 @main.command()
 @click.option("--title", required=True, help="Task title")
-@click.option("--project", required=True, help="Project ID")
+@click.option("--project", required=True, help="Project ID or name")
 @click.option("--description", help="Task description")
 @click.option("--tags", help="Comma-separated tags")
 def add(title: str, project: str, description: str | None, tags: str | None) -> None:
@@ -185,27 +185,29 @@ def add(title: str, project: str, description: str | None, tags: str | None) -> 
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
     from taskagent_cli.format import print_json
-    from taskagent_cli.models import parse_tags
+    from taskagent_cli.models import parse_tags, resolve_project_id
 
     config = load_config()
     require_auth_config(config)
 
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    project_id = resolve_project_id(client, project)
+
     payload: dict[str, str | list[str]] = {
         "title": title,
-        "project_id": project,
+        "project_id": project_id,
     }
     if description is not None:
         payload["description"] = description
     if tags is not None:
         payload["tags"] = parse_tags(tags)
 
-    client = TaskAgentClient(config.server, config.api_key, config.timeout)
     result = client.request("POST", "/tasks", json=payload)
     print_json(result)
 
 
 @main.command(name="list")
-@click.option("--project", help="Filter by project ID")
+@click.option("--project", help="Filter by project ID or name")
 @click.option("--status", help="Filter by task status")
 @click.option("--limit", type=int, help="Limit number of results")
 @click.option("--offset", type=int, help="Offset for pagination")
@@ -216,19 +218,22 @@ def task_list(
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
     from taskagent_cli.format import print_json
-    from taskagent_cli.models import is_valid_status
+    from taskagent_cli.models import VALID_STATUSES, is_valid_status, resolve_project_id
 
     if status is not None and not is_valid_status(status):
         raise click.UsageError(
-            f"Invalid status: {status} (must be one of: {', '.join(__import__('taskagent_cli.models', fromlist=['VALID_STATUSES']).VALID_STATUSES)})"
+            f"Invalid status: {status} (must be one of: {', '.join(VALID_STATUSES)})"
         )
 
     config = load_config()
     require_auth_config(config)
 
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+
     params: dict[str, str | int] = {}
     if project is not None:
-        params["project_id"] = project
+        project_id = resolve_project_id(client, project)
+        params["project_id"] = project_id
     if status is not None:
         params["status"] = status
     if limit is not None:
@@ -236,7 +241,6 @@ def task_list(
     if offset is not None:
         params["offset"] = offset
 
-    client = TaskAgentClient(config.server, config.api_key, config.timeout)
     result = client.request("GET", "/tasks", params=params)
     print_json(result or [])
 

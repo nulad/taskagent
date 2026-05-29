@@ -1,8 +1,19 @@
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import TYPE_CHECKING, Any
+
+from taskagent_cli.errors import ApiClientError
+
+if TYPE_CHECKING:
+    from taskagent_cli.api import TaskAgentClient
 
 VALID_STATUSES = ("backlog", "todo", "in-progress", "review", "done")
+
+# UUID pattern (simplified)
+UUID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
 
 
 def is_valid_status(status: str) -> bool:
@@ -37,3 +48,52 @@ def build_partial_update_payload(
     if status is not None:
         payload["status"] = status
     return payload
+
+
+def resolve_project_id(client: TaskAgentClient, project_ref: str) -> str:
+    """Resolve a project name or ID to a project ID.
+
+    If project_ref looks like a UUID, return it unchanged.
+    Otherwise, fetch projects and find one matching the name.
+
+    Args:
+        client: Authenticated API client
+        project_ref: Project ID (UUID) or project name
+
+    Returns:
+        Project ID
+
+    Raises:
+        ApiClientError: If project not found or ambiguous
+    """
+    # If it looks like a UUID, return as-is
+    if UUID_PATTERN.match(project_ref):
+        return project_ref
+
+    # Otherwise, look up by name
+    try:
+        projects = client.request("GET", "/projects")
+    except ApiClientError as e:
+        raise ApiClientError(f"Failed to resolve project: {e.message}") from e
+
+    if not isinstance(projects, list):
+        raise ApiClientError("Invalid projects response from server")
+
+    # Find projects matching the name
+    matches = [
+        p for p in projects if isinstance(p, dict) and p.get("name") == project_ref
+    ]
+
+    if not matches:
+        raise ApiClientError(f"project not found: {project_ref}")
+
+    if len(matches) > 1:
+        raise ApiClientError(
+            f"ambiguous project name: {project_ref} (use project ID to disambiguate)"
+        )
+
+    project_id = matches[0].get("id")
+    if not isinstance(project_id, str) or not project_id:
+        raise ApiClientError("Invalid project response: missing id")
+
+    return project_id
