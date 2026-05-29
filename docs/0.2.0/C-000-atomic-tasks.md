@@ -64,7 +64,7 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 
 ## Progress
 
-### Completed (25/32 tasks)
+### Completed (26/32 tasks)
 - **TASK-001** ✓ Bootstrap Python Click Entrypoint with Click group and console script
 - **TASK-002** ✓ Add Python CLI Shared Utilities (errors, models, format helpers)
 - **TASK-003** ✓ Add CLI Quality Targets (Makefile with lint, format, typecheck, test targets)
@@ -89,10 +89,10 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 - **TASK-030** ✓ Add CLI Distribution Packaging (wheel and sdist builds)
 - **TASK-031** ✓ Add CLI Smoke Test (CLI help, version, commands, completion)
 - **TASK-032** ✓ Add CLI GitHub Actions Workflow (multi-version Python matrix)
+- **TASK-019** ✓ Implement Project Name Resolution For Tasks (accept project name or ID)
 
-### Not Yet Implemented (7/32 tasks)
-- **TASK-018:** Implement Task Update Payloads (partial update field handling - partially done via update command)
-- **TASK-019:** Implement Project Name Resolution For Tasks (allow --project to accept project name or ID)
+### Not Yet Implemented (6/32 tasks)
+- **TASK-018:** Implement Task Update Payloads (partial update field handling - already implemented via update command)
 - **TASK-023:** Add Project Human Format Helpers (table/detail rendering for projects)
 - **TASK-024:** Add Task Human Format Helpers (table/detail rendering for tasks)
 - **TASK-025:** Wire Project Human Format Flags (--format human for projects)
@@ -102,7 +102,7 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 
 ## Summary
 
-**Status:** 25 of 32 tasks completed (78%)
+**Status:** 26 of 32 tasks completed (81%)
 
 ### What's Working
 - ✅ Full Click CLI with proper error handling and exit codes
@@ -110,8 +110,9 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 - ✅ Authentication (login, whoami) with secure credential storage
 - ✅ HTTP API client with comprehensive error mapping
 - ✅ Complete project CRUD operations
-- ✅ Complete task CRUD operations with filtering
+- ✅ Complete task CRUD operations with filtering and project name resolution
 - ✅ Task status transitions (move command)
+- ✅ Project name resolution (accept project name or ID in task commands)
 - ✅ Shell completion for bash/zsh/fish
 - ✅ Python wheel and source distribution builds
 - ✅ 34 passing unit tests covering all core functionality
@@ -119,7 +120,6 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 
 ### What's Not Yet Implemented
 - Human-readable output formatting (tables, details) for commands
-- Project name resolution in task commands (currently requires project ID)
 - Documentation for shell completion installation
 
 ### Architecture Highlights
