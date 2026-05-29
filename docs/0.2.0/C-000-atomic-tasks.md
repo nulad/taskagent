@@ -64,31 +64,38 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 
 ## Progress
 
-### Completed (17/32 tasks)
-- **TASK-001** ✓ Bootstrap Python Click Entrypoint
-- **TASK-002** ✓ Add Python CLI Shared Utilities (errors, models, format)
-- **TASK-003** ✓ Add CLI Quality Targets (Makefile with lint, format, typecheck, test)
-- **TASK-004** ✓ Implement Config Loading Precedence
-- **TASK-005** ✓ Implement Login Command
-- **TASK-006** ✓ Implement Whoami Command
-- **TASK-008** ✓ Implement API Client Success Path
-- **TASK-009** ✓ Implement API Client Error Mapping
+### Completed (19/32 tasks)
+- **TASK-001** ✓ Bootstrap Python Click Entrypoint with Click group and console script
+- **TASK-002** ✓ Add Python CLI Shared Utilities (errors, models, format helpers)
+- **TASK-003** ✓ Add CLI Quality Targets (Makefile with lint, format, typecheck, test targets)
+- **TASK-004** ✓ Implement Config Loading Precedence (file → env vars → defaults)
+- **TASK-005** ✓ Implement Login Command with secure file permissions
+- **TASK-006** ✓ Implement Whoami Command (GET /auth/keys)
+- **TASK-007** ✓ Add Config Precedence Tests
+- **TASK-008** ✓ Implement API Client Success Path with proper headers
+- **TASK-009** ✓ Implement API Client Error Mapping (4xx/5xx/network errors)
+- **TASK-010** ✓ Add API Client Error Tests
 - **TASK-011** ✓ Implement Project List And Show Commands
 - **TASK-012** ✓ Implement Project Create Command
 - **TASK-013** ✓ Implement Project Update Command
 - **TASK-014** ✓ Implement Project Delete Command
 - **TASK-016** ✓ Implement Task Add Show Delete Commands
-- **TASK-017** ✓ Implement Task List Filters
-- **TASK-021** ✓ Implement Task Move Command
+- **TASK-017** ✓ Implement Task List Filters (--project, --status, --limit, --offset)
+- **TASK-021** ✓ Implement Task Move Command (PATCH /tasks/{id}/move)
+- **TASK-028** ✓ Implement Click Completion Command
 
-### In Progress / Not Started
-- TASK-007: Add Config Precedence Tests (pending)
-- TASK-010: Add API Client Error Tests (pending)
-- TASK-015: Add Project Command Tests (pending)
-- TASK-018: Implement Task Update Payloads (pending)
-- TASK-019: Implement Project Name Resolution For Tasks (pending)
-- TASK-020: Add Task Command Tests (pending)
-- TASK-022: Add Task Move Tests (pending)
-- TASK-023-027: Human Format Helpers (pending)
-- TASK-028-029: Command Completion (pending)
-- TASK-030-032: Distribution Packaging and CI (pending)
+### Remaining (13/32 tasks)
+- TASK-015: Add Project Command Tests
+- TASK-018: Implement Task Update Payloads
+- TASK-019: Implement Project Name Resolution For Tasks
+- TASK-020: Add Task Command Tests
+- TASK-022: Add Task Move Tests
+- TASK-023: Add Project Human Format Helpers
+- TASK-024: Add Task Human Format Helpers
+- TASK-025: Wire Project Human Format Flags
+- TASK-026: Wire Task Human Format Flags
+- TASK-027: Wire Auth Human Format Flag
+- TASK-029: Document Completion Installation
+- TASK-030: Add CLI Distribution Packaging (setup.py, build config)
+- TASK-031: Add CLI Smoke Test
+- TASK-032: Add CLI GitHub Actions Workflow
