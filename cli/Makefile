@@ -18,5 +18,5 @@ build:
 	python -m build
 
 smoke:
-	task --help
-	task --version
+	taskagent --help
+	taskagent --version

@@ -40,14 +40,14 @@ pip install -e ".[dev]"
 ## Usage
 
 ```bash
-task --help                              # Show help
-task --version                           # Show version
-task login --server <url> --key <key>    # Configure authentication
-task whoami                              # Verify credentials
-task projects list                       # List projects
-task add --title "Task" --project <id>   # Add a task
-task list                                # List tasks
-task move <id> <status>                  # Change task status
+taskagent --help                              # Show help
+taskagent --version                           # Show version
+taskagent login --server <url> --key <key>    # Configure authentication
+taskagent whoami                              # Verify credentials
+taskagent projects list                       # List projects
+taskagent add --title "Task" --project <id>   # Add a task
+taskagent list                                # List tasks
+taskagent move <id> <status>                  # Change task status
 ```
 
 ## Shell Completion
@@ -59,7 +59,7 @@ The CLI supports static shell completion for Bash, Zsh, and Fish. Completion is 
 Add to your `~/.bashrc`:
 
 ```bash
-eval "$(task completion bash)"
+eval "$(taskagent completion bash)"
 ```
 
 ### Zsh
@@ -67,15 +67,15 @@ eval "$(task completion bash)"
 Add to your `~/.zshrc`:
 
 ```zsh
-eval "$(task completion zsh)"
+eval "$(taskagent completion zsh)"
 ```
 
 ### Fish
 
-Add to `~/.config/fish/completions/task.fish`:
+Add to `~/.config/fish/completions/taskagent.fish`:
 
 ```fish
-task completion fish | source
+taskagent completion fish | source
 ```
 
 ## Development

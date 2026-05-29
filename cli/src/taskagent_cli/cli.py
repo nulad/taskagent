@@ -381,17 +381,17 @@ def completion(shell: str) -> None:
     """Generate shell completion script."""
     if shell == "bash":
         click.echo(
-            "# Bash completion for task CLI\n"
-            'eval "$(_TASK_COMPLETE=bash_source task)"\n'
+            "# Bash completion for taskagent CLI\n"
+            'eval "$(_TASKAGENT_COMPLETE=bash_source taskagent)"\n'
         )
     elif shell == "zsh":
         click.echo(
-            '# Zsh completion for task CLI\neval "$(_TASK_COMPLETE=zsh_source task)"\n'
+            '# Zsh completion for taskagent CLI\neval "$(_TASKAGENT_COMPLETE=zsh_source taskagent)"\n'
         )
     elif shell == "fish":
         click.echo(
-            "# Fish completion for task CLI\n"
-            "eval (env _TASK_COMPLETE=fish_source task)\n"
+            "# Fish completion for taskagent CLI\n"
+            "eval (env _TASKAGENT_COMPLETE=fish_source taskagent)\n"
         )
 
 
