@@ -64,7 +64,7 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 
 ## Progress
 
-### Completed (19/32 tasks)
+### Completed (23/32 tasks)
 - **TASK-001** ✓ Bootstrap Python Click Entrypoint with Click group and console script
 - **TASK-002** ✓ Add Python CLI Shared Utilities (errors, models, format helpers)
 - **TASK-003** ✓ Add CLI Quality Targets (Makefile with lint, format, typecheck, test targets)
@@ -79,12 +79,16 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 - **TASK-012** ✓ Implement Project Create Command
 - **TASK-013** ✓ Implement Project Update Command
 - **TASK-014** ✓ Implement Project Delete Command
+- **TASK-015** ✓ Add Project Command Tests
 - **TASK-016** ✓ Implement Task Add Show Delete Commands
 - **TASK-017** ✓ Implement Task List Filters (--project, --status, --limit, --offset)
+- **TASK-020** ✓ Add Task Command Tests
 - **TASK-021** ✓ Implement Task Move Command (PATCH /tasks/{id}/move)
+- **TASK-022** ✓ Add Task Move Tests
 - **TASK-028** ✓ Implement Click Completion Command
+- **TASK-030** ✓ Add CLI Distribution Packaging (wheel and sdist builds)
 
-### Remaining (13/32 tasks)
+### Remaining (9/32 tasks)
 - TASK-015: Add Project Command Tests
 - TASK-018: Implement Task Update Payloads
 - TASK-019: Implement Project Name Resolution For Tasks
