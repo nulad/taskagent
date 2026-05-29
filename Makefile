@@ -44,6 +44,6 @@ compose-smoke: docker-build data-dir
 
 compose-run-seed: data-dir
 	@echo "Creating first API key..."
-	@if [ -z "${USER}" ]; then echo "Error: USER not set"; exit 1; fi
+	@if [ -z "${SEED_USER}" ]; then echo "Error: SEED_USER not set"; exit 1; fi
 	@if [ -z "${LABEL}" ]; then echo "Error: LABEL not set"; exit 1; fi
-	docker compose run --rm taskagent seed --user $(USER) --label $(LABEL)
+	docker compose run --rm taskagent seed --user $(SEED_USER) --label $(LABEL)
