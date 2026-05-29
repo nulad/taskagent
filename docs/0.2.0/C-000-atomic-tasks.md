@@ -63,3 +63,32 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 - TASK-031 must wait for the command implementation and package entrypoint. TASK-032 should run last because it wires the completed checks into CI.
 
 ## Progress
+
+### Completed (17/32 tasks)
+- **TASK-001** ✓ Bootstrap Python Click Entrypoint
+- **TASK-002** ✓ Add Python CLI Shared Utilities (errors, models, format)
+- **TASK-003** ✓ Add CLI Quality Targets (Makefile with lint, format, typecheck, test)
+- **TASK-004** ✓ Implement Config Loading Precedence
+- **TASK-005** ✓ Implement Login Command
+- **TASK-006** ✓ Implement Whoami Command
+- **TASK-008** ✓ Implement API Client Success Path
+- **TASK-009** ✓ Implement API Client Error Mapping
+- **TASK-011** ✓ Implement Project List And Show Commands
+- **TASK-012** ✓ Implement Project Create Command
+- **TASK-013** ✓ Implement Project Update Command
+- **TASK-014** ✓ Implement Project Delete Command
+- **TASK-016** ✓ Implement Task Add Show Delete Commands
+- **TASK-017** ✓ Implement Task List Filters
+- **TASK-021** ✓ Implement Task Move Command
+
+### In Progress / Not Started
+- TASK-007: Add Config Precedence Tests (pending)
+- TASK-010: Add API Client Error Tests (pending)
+- TASK-015: Add Project Command Tests (pending)
+- TASK-018: Implement Task Update Payloads (pending)
+- TASK-019: Implement Project Name Resolution For Tasks (pending)
+- TASK-020: Add Task Command Tests (pending)
+- TASK-022: Add Task Move Tests (pending)
+- TASK-023-027: Human Format Helpers (pending)
+- TASK-028-029: Command Completion (pending)
+- TASK-030-032: Distribution Packaging and CI (pending)

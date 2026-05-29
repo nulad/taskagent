@@ -334,9 +334,23 @@ def move(task_id: str, status: str) -> None:
 
 
 @main.command()
-def completion() -> None:
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
+def completion(shell: str) -> None:
     """Generate shell completion script."""
-    raise NotImplementedError("TASK-028")
+    if shell == "bash":
+        click.echo(
+            "# Bash completion for task CLI\n"
+            'eval "$(_TASK_COMPLETE=bash_source task)"\n'
+        )
+    elif shell == "zsh":
+        click.echo(
+            '# Zsh completion for task CLI\neval "$(_TASK_COMPLETE=zsh_source task)"\n'
+        )
+    elif shell == "fish":
+        click.echo(
+            "# Fish completion for task CLI\n"
+            "eval (env _TASK_COMPLETE=fish_source task)\n"
+        )
 
 
 def run() -> None:
