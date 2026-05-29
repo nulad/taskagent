@@ -310,9 +310,27 @@ def delete(task_id: str) -> None:
 
 
 @main.command()
-def move() -> None:
+@click.argument("task_id")
+@click.argument("status")
+def move(task_id: str, status: str) -> None:
     """Move a task to a different status."""
-    raise NotImplementedError("TASK-021")
+    from taskagent_cli.api import TaskAgentClient
+    from taskagent_cli.config import load_config, require_auth_config
+    from taskagent_cli.format import print_json
+    from taskagent_cli.models import VALID_STATUSES, is_valid_status
+
+    if not is_valid_status(status):
+        raise click.UsageError(
+            f"invalid status: {status} (must be one of: {', '.join(VALID_STATUSES)})"
+        )
+
+    config = load_config()
+    require_auth_config(config)
+
+    payload = {"status": status}
+    client = TaskAgentClient(config.server, config.api_key, config.timeout)
+    result = client.request("PATCH", f"/tasks/{task_id}/move", json=payload)
+    print_json(result)
 
 
 @main.command()
