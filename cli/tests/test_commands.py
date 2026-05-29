@@ -130,3 +130,138 @@ def test_completion_fish() -> None:
     result = runner.invoke(main, ["completion", "fish"])
     assert result.exit_code == 0
     assert "fish_source" in result.output
+
+
+def test_projects_list_human_format() -> None:
+    """Test projects list with human format."""
+    runner = CliRunner()
+    with patch("taskagent_cli.api.TaskAgentClient") as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.request.return_value = [
+            {"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Project 1", "created_at": "", "updated_at": ""}
+        ]
+
+        with patch("taskagent_cli.config.load_config") as mock_load:
+            mock_config = Config(
+                server="http://localhost:8080",
+                api_key="test-key",
+                timeout=10,
+                home=Path.home() / ".taskagent",
+            )
+            mock_load.return_value = mock_config
+
+            result = runner.invoke(main, ["projects", "list", "--format", "human"])
+            assert result.exit_code == 0
+            assert "Project 1" in result.output
+            assert "550e8400" in result.output
+
+
+def test_projects_show_human_format() -> None:
+    """Test projects show with human format."""
+    runner = CliRunner()
+    with patch("taskagent_cli.api.TaskAgentClient") as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.request.return_value = {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "name": "Project 1",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z",
+        }
+
+        with patch("taskagent_cli.config.load_config") as mock_load:
+            mock_config = Config(
+                server="http://localhost:8080",
+                api_key="test-key",
+                timeout=10,
+                home=Path.home() / ".taskagent",
+            )
+            mock_load.return_value = mock_config
+
+            result = runner.invoke(main, ["projects", "show", "proj-1", "--format", "human"])
+            assert result.exit_code == 0
+            assert "Project 1" in result.output
+            assert "550e8400-e29b-41d4-a716-446655440000" in result.output
+
+
+def test_task_list_human_format() -> None:
+    """Test task list with human format."""
+    runner = CliRunner()
+    with patch("taskagent_cli.api.TaskAgentClient") as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.request.return_value = [
+            {"id": "550e8400-e29b-41d4-a716-446655440000", "title": "Task 1", "status": "todo", "project_id": "p1", "updated_at": ""}
+        ]
+
+        with patch("taskagent_cli.config.load_config") as mock_load:
+            mock_config = Config(
+                server="http://localhost:8080",
+                api_key="test-key",
+                timeout=10,
+                home=Path.home() / ".taskagent",
+            )
+            mock_load.return_value = mock_config
+
+            result = runner.invoke(main, ["list", "--format", "human"])
+            assert result.exit_code == 0
+            assert "Task 1" in result.output
+            assert "todo" in result.output
+
+
+def test_task_show_human_format() -> None:
+    """Test task show with human format."""
+    runner = CliRunner()
+    with patch("taskagent_cli.api.TaskAgentClient") as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.request.return_value = {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "title": "Task 1",
+            "status": "todo",
+            "project_id": "p1",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z",
+        }
+
+        with patch("taskagent_cli.config.load_config") as mock_load:
+            mock_config = Config(
+                server="http://localhost:8080",
+                api_key="test-key",
+                timeout=10,
+                home=Path.home() / ".taskagent",
+            )
+            mock_load.return_value = mock_config
+
+            result = runner.invoke(main, ["show", "task-1", "--format", "human"])
+            assert result.exit_code == 0
+            assert "Task 1" in result.output
+            assert "550e8400-e29b-41d4-a716-446655440000" in result.output
+
+
+def test_whoami_human_format() -> None:
+    """Test whoami with human format."""
+    runner = CliRunner()
+    with patch("taskagent_cli.api.TaskAgentClient") as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.request.return_value = [
+            {"id": 1, "label": "my-key", "user_name": "alice", "created_at": "2024-01-01T00:00:00Z"}
+        ]
+
+        with patch("taskagent_cli.config.load_config") as mock_load:
+            mock_config = Config(
+                server="http://localhost:8080",
+                api_key="test-key",
+                timeout=10,
+                home=Path.home() / ".taskagent",
+            )
+            mock_load.return_value = mock_config
+
+            result = runner.invoke(main, ["whoami", "--format", "human"])
+            assert result.exit_code == 0
+            assert "my-key" in result.output
+            assert "alice" in result.output
+
+
+def test_invalid_format_flag() -> None:
+    """Test that invalid format value exits with code 2."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["projects", "list", "--format", "xml"])
+    assert result.exit_code == 2

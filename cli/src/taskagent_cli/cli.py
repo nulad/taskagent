@@ -12,6 +12,14 @@ from taskagent_cli.errors import (
     NetworkError,
     TaskAgentError,
 )
+from taskagent_cli.format import (
+    print_json,
+    render_auth_key_detail,
+    render_project_detail,
+    render_project_table,
+    render_task_detail,
+    render_task_table,
+)
 
 
 class ErrorHandler(click.Group):
@@ -58,19 +66,33 @@ def login(server: str, key: str | None) -> None:
     click.echo("Logged in successfully.", err=True)
 
 
+def format_option(default: str = "json") -> click.Option:
+    """Reusable Click option for output format."""
+    return click.option(
+        "--format",
+        "output_format",
+        type=click.Choice(["json", "human"]),
+        default=default,
+        help="Output format.",
+    )
+
+
 @main.command()
-def whoami() -> None:
+@format_option()
+def whoami(output_format: str) -> None:
     """Display current user/key information."""
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
-    from taskagent_cli.format import print_json
 
     config = load_config()
     require_auth_config(config)
 
     client = TaskAgentClient(config.server, config.api_key, config.timeout)
     result = client.request("GET", "/auth/keys")
-    print_json(result)
+    if output_format == "human":
+        click.echo(render_auth_key_detail(result or []))
+    else:
+        print_json(result)
 
 
 @main.group()
@@ -80,18 +102,21 @@ def projects() -> None:
 
 
 @projects.command(name="list")
-def projects_list() -> None:
+@format_option()
+def projects_list(output_format: str) -> None:
     """List projects."""
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
-    from taskagent_cli.format import print_json
 
     config = load_config()
     require_auth_config(config)
 
     client = TaskAgentClient(config.server, config.api_key, config.timeout)
     result = client.request("GET", "/projects")
-    print_json(result or [])
+    if output_format == "human":
+        click.echo(render_project_table(result or []))
+    else:
+        print_json(result or [])
 
 
 @projects.command(name="create")
@@ -117,18 +142,21 @@ def projects_create(name: str, description: str | None) -> None:
 
 @projects.command(name="show")
 @click.argument("project_id")
-def projects_show(project_id: str) -> None:
+@format_option()
+def projects_show(project_id: str, output_format: str) -> None:
     """Show project details."""
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
-    from taskagent_cli.format import print_json
 
     config = load_config()
     require_auth_config(config)
 
     client = TaskAgentClient(config.server, config.api_key, config.timeout)
     result = client.request("GET", f"/projects/{project_id}")
-    print_json(result)
+    if output_format == "human":
+        click.echo(render_project_detail(result or {}))
+    else:
+        print_json(result)
 
 
 @projects.command(name="update")
@@ -211,13 +239,17 @@ def add(title: str, project: str, description: str | None, tags: str | None) -> 
 @click.option("--status", help="Filter by task status")
 @click.option("--limit", type=int, help="Limit number of results")
 @click.option("--offset", type=int, help="Offset for pagination")
+@format_option()
 def task_list(
-    project: str | None, status: str | None, limit: int | None, offset: int | None
+    project: str | None,
+    status: str | None,
+    limit: int | None,
+    offset: int | None,
+    output_format: str,
 ) -> None:
     """List tasks."""
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
-    from taskagent_cli.format import print_json
     from taskagent_cli.models import VALID_STATUSES, is_valid_status, resolve_project_id
 
     if status is not None and not is_valid_status(status):
@@ -242,23 +274,29 @@ def task_list(
         params["offset"] = offset
 
     result = client.request("GET", "/tasks", params=params)
-    print_json(result or [])
+    if output_format == "human":
+        click.echo(render_task_table(result or []))
+    else:
+        print_json(result or [])
 
 
 @main.command()
 @click.argument("task_id")
-def show(task_id: str) -> None:
+@format_option()
+def show(task_id: str, output_format: str) -> None:
     """Show task details."""
     from taskagent_cli.api import TaskAgentClient
     from taskagent_cli.config import load_config, require_auth_config
-    from taskagent_cli.format import print_json
 
     config = load_config()
     require_auth_config(config)
 
     client = TaskAgentClient(config.server, config.api_key, config.timeout)
     result = client.request("GET", f"/tasks/{task_id}")
-    print_json(result)
+    if output_format == "human":
+        click.echo(render_task_detail(result or {}))
+    else:
+        print_json(result)
 
 
 @main.command()

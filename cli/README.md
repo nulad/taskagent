@@ -50,6 +50,34 @@ task list                                # List tasks
 task move <id> <status>                  # Change task status
 ```
 
+## Shell Completion
+
+The CLI supports static shell completion for Bash, Zsh, and Fish. Completion is static in v0.2.0 (commands and flags only; dynamic task/project names are not completed).
+
+### Bash
+
+Add to your `~/.bashrc`:
+
+```bash
+eval "$(task completion bash)"
+```
+
+### Zsh
+
+Add to your `~/.zshrc`:
+
+```zsh
+eval "$(task completion zsh)"
+```
+
+### Fish
+
+Add to `~/.config/fish/completions/task.fish`:
+
+```fish
+task completion fish | source
+```
+
 ## Development
 
 Run tests, linting, and type checks:
