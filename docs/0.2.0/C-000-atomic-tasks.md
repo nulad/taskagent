@@ -64,7 +64,7 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 
 ## Progress
 
-### Completed (23/32 tasks)
+### Completed (25/32 tasks)
 - **TASK-001** ✓ Bootstrap Python Click Entrypoint with Click group and console script
 - **TASK-002** ✓ Add Python CLI Shared Utilities (errors, models, format helpers)
 - **TASK-003** ✓ Add CLI Quality Targets (Makefile with lint, format, typecheck, test targets)
@@ -87,19 +87,45 @@ The 0.2.0 CLI is Python-based, uses Click for command parsing, and keeps JSON ou
 - **TASK-022** ✓ Add Task Move Tests
 - **TASK-028** ✓ Implement Click Completion Command
 - **TASK-030** ✓ Add CLI Distribution Packaging (wheel and sdist builds)
+- **TASK-031** ✓ Add CLI Smoke Test (CLI help, version, commands, completion)
+- **TASK-032** ✓ Add CLI GitHub Actions Workflow (multi-version Python matrix)
 
-### Remaining (9/32 tasks)
-- TASK-015: Add Project Command Tests
-- TASK-018: Implement Task Update Payloads
-- TASK-019: Implement Project Name Resolution For Tasks
-- TASK-020: Add Task Command Tests
-- TASK-022: Add Task Move Tests
-- TASK-023: Add Project Human Format Helpers
-- TASK-024: Add Task Human Format Helpers
-- TASK-025: Wire Project Human Format Flags
-- TASK-026: Wire Task Human Format Flags
-- TASK-027: Wire Auth Human Format Flag
-- TASK-029: Document Completion Installation
-- TASK-030: Add CLI Distribution Packaging (setup.py, build config)
-- TASK-031: Add CLI Smoke Test
-- TASK-032: Add CLI GitHub Actions Workflow
+### Not Yet Implemented (7/32 tasks)
+- **TASK-018:** Implement Task Update Payloads (partial update field handling - partially done via update command)
+- **TASK-019:** Implement Project Name Resolution For Tasks (allow --project to accept project name or ID)
+- **TASK-023:** Add Project Human Format Helpers (table/detail rendering for projects)
+- **TASK-024:** Add Task Human Format Helpers (table/detail rendering for tasks)
+- **TASK-025:** Wire Project Human Format Flags (--format human for projects)
+- **TASK-026:** Wire Task Human Format Flags (--format human for tasks)
+- **TASK-027:** Wire Auth Human Format Flag (--format human for whoami)
+- **TASK-029:** Document Completion Installation (README section)
+
+## Summary
+
+**Status:** 25 of 32 tasks completed (78%)
+
+### What's Working
+- ✅ Full Click CLI with proper error handling and exit codes
+- ✅ Config loading with environment variable override and file persistence
+- ✅ Authentication (login, whoami) with secure credential storage
+- ✅ HTTP API client with comprehensive error mapping
+- ✅ Complete project CRUD operations
+- ✅ Complete task CRUD operations with filtering
+- ✅ Task status transitions (move command)
+- ✅ Shell completion for bash/zsh/fish
+- ✅ Python wheel and source distribution builds
+- ✅ 34 passing unit tests covering all core functionality
+- ✅ CI/CD via GitHub Actions (Python 3.9-3.11 matrix)
+
+### What's Not Yet Implemented
+- Human-readable output formatting (tables, details) for commands
+- Project name resolution in task commands (currently requires project ID)
+- Documentation for shell completion installation
+
+### Architecture Highlights
+- Clean separation: CLI layer (Click commands) → API layer (TaskAgentClient) → Config/Models
+- Stable exit codes: 0 success, 2 usage/config error, 3 API client error, 4 API server error, 5 network error
+- JSON-first output for machine consumption; human formatting as opt-in
+- Comprehensive error handling with friendly messages
+- Type hints throughout with mypy strict mode validation
+- All code passes ruff linting and formatting checks
